@@ -348,7 +348,7 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1' };
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1' };
 
 let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
 let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
@@ -745,12 +745,14 @@ const SCREENS = {
   atlas() {
     const hide = S.hide;
     return `<div class="sticky-head"><div class="lesson-top" style="margin-bottom:6px"><button class="x" data-act="home" title="Zpět">✕</button>
-      <h2 style="flex:1">📖 Atlas</h2>
-      <label class="toggle"><input type="checkbox" data-act="hideNames" ${hide ? 'checked' : ''}> Schovat jména</label></div></div>
+      <h2 style="flex:1">📖 Atlas</h2></div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap">
+        <label class="toggle"><input type="checkbox" data-act="hideNames" ${hide ? 'checked' : ''}> Schovat jména</label>
+        <label class="toggle"><input type="checkbox" data-act="wholePhotos" ${S.whole ? 'checked' : ''}> Celé fotky</label></div></div>
       ${GROUPS.map(g => `
         <div class="section-title" style="color:${g.color}"><span>${g.icon} ${g.name}</span></div>
         <div class="atlas-grid">${ANIMALS.filter(a => a.g === g.id).map(a => `
-          <button class="btn acard" data-open="${esc(a.id)}">${picHtml(imgsOf(a)[0], a)}
+          <button class="btn acard" data-open="${esc(a.id)}">${picHtml(imgsOf(a)[0], a, S.whole ? 'whole' : '')}
             <div class="an">${hide ? '<span class="muted">? ? ?</span>' : esc(a.cz)}${dots(a)}</div></button>`).join('')}
         </div>`).join('')}
       ${S.open ? atlasModal() : ''}`;
@@ -986,7 +988,7 @@ $app.addEventListener('click', e => {
     case 'lesson': startLesson(); break;
     case 'exam': startExam(); break;
     case 'cards': startCards(); break;
-    case 'atlas': go('atlas', { hide: store.get(K.hide, false) }); break;
+    case 'atlas': go('atlas', { hide: store.get(K.hide, false), whole: store.get(K.whole, false) }); break;
     case 'home': go('home'); break;
     case 'retry': go('loading'); loadImages(true).then(() => go('home')); break;
     case 'toggleAll': SELECTED = SELECTED.length === GROUPS.length ? [] : GROUPS.map(g => g.id); store.set(K.sel, SELECTED); render(); break;
@@ -1014,6 +1016,7 @@ $app.addEventListener('click', e => {
       else { C.img = pickImg(C.queue[C.i]); render(); }
       break;
     }
+    case 'wholePhotos': S.whole = actEl.checked; store.set(K.whole, S.whole); { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
     case 'hideNames': S.hide = actEl.checked; store.set(K.hide, S.hide); { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
     case 'closeModal': S.open = null; { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
     case 'nextImg': S.openIdx++; { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
