@@ -265,6 +265,20 @@
   .search:focus { border-color: var(--green); }
   .search::placeholder { color: rgba(255,255,255,.4); }
   .search-empty { text-align: center; color: var(--muted); font-weight: 700; padding: 30px 0; }
+  .noscroll { overflow: hidden; }
+  .detail { position: fixed; inset: 0; z-index: 60; background: var(--bg); overflow-y: auto; animation: rise .25s cubic-bezier(.2,.8,.2,1); }
+  .hero-photo { position: relative; height: min(62vh, 560px); background: #000; }
+  .carousel { display: flex; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .carousel::-webkit-scrollbar { display: none; }
+  .pic.slide { flex: none; width: 100%; height: 100%; aspect-ratio: auto !important; border-radius: 0; box-shadow: none; scroll-snap-align: center; overflow: hidden; }
+  .cdots { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; gap: 6px; justify-content: center; pointer-events: none; }
+  .cdots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.45); transition: width .2s, background .2s; }
+  .cdots i.on { width: 20px; border-radius: 4px; background: #fff; }
+  .detail-x { position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 12px; background: rgba(0,0,0,.45); color: #fff;
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .detail-body { max-width: 640px; margin: 0 auto; padding: 4px 16px calc(24px + env(safe-area-inset-bottom)); }
+  .detail-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .detail-actions a { text-decoration: none; }
 </style>
 </head>
 <body>
@@ -291,7 +305,7 @@ const RAW = `
 kru|mihule potoční|Lampetra planeri
 par|máčka skvrnitá|Scyliorhinus canicula
 par|žralok bílý|Carcharodon carcharias
-par|žralok obrovský|Cetorhinus maximus
+par|žralok obrovský|Rhincodon typus
 par|kladivoun obecný|Sphyrna zygaena
 par|manta obrovská|Mobula birostris
 par|chiméra podivná|Chimaera monstrosa
@@ -455,7 +469,7 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v3', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1' };
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v4', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1' };
 
 let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
 let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
@@ -690,7 +704,7 @@ let focusSave = null;
 // on a blurred copy of the photo instead of being cropped.
 const FRAME_MIN = 0.8, FRAME_MAX = 1.9;
 function fitMainFrame(img, frame) {
-  if (frame.closest('.acard, .mistake, .imgopt') || frame.classList.contains('sm')) return;
+  if (frame.closest('.acard, .mistake, .imgopt') || frame.classList.contains('sm') || frame.classList.contains('slide')) return;
   const r = img.naturalWidth / img.naturalHeight;
   frame.style.aspectRatio = String(Math.min(FRAME_MAX, Math.max(FRAME_MIN, r)));
   if (r > FRAME_MAX * 1.08 || r < FRAME_MIN / 1.08) {
@@ -807,6 +821,9 @@ function render() {
     im.replaceWith(old.querySelector('img'));
   });
   if (S.screen === 'atlas' && S.q) applyAtlasSearch();
+  document.body.classList.toggle('noscroll', S.screen === 'atlas' && !!S.open);
+  const car = $app.querySelector('[data-carousel]');
+  if (car && S.openIdx) car.scrollLeft = S.openIdx * car.clientWidth;
   const chips2 = $app.querySelector('.groups');
   if (chips2 && chipsX) chips2.scrollLeft = chipsX;
   const focus = $app.querySelector('[autofocus]');
@@ -978,21 +995,27 @@ const SCREENS = {
 function atlasModal() {
   const a = ANIMALS.find(x => x.id === S.open);
   const list = imgsOf(a);
-  const idx = S.openIdx % Math.max(1, list.length);
-  const url = list[idx];
+  const idx = Math.min(S.openIdx || 0, Math.max(0, list.length - 1));
   const p = prog(a);
-  return `<div class="modal-bg" data-act="closeModal"><div class="modal" data-stop>
-    ${picHtml(url, a, 'whole')}
-    <div class="intro-name">${nameHtml(a)} ${speakBtn(a)}</div>
-    <div class="intro-sub">${esc(a.la)} · ${GROUP_BY_ID[a.g].icon} ${GROUP_BY_ID[a.g].name}</div>
-    <p class="center small muted">Viděno ${p.s}×, správně ${p.c}×, špatně ${p.w}×</p>
-    <div class="row" style="margin-top:8px">
-      ${list.length > 1 ? `<button class="btn" data-act="nextImg">🔄 Jiná fotka</button>` : ''}
-      ${url ? `<button class="btn" data-act="badImg" title="Fotka nesedí? Skryj ji.">🚫 Špatná fotka</button>` : ''}
+  const g = GROUP_BY_ID[a.g];
+  return `<div class="detail" data-stop>
+    <div class="hero-photo">
+      <div class="carousel" data-carousel>
+        ${list.length ? list.map(u => picHtml(u, a, 'whole slide')).join('') : picHtml(null, a, 'whole slide')}
+      </div>
+      ${list.length > 1 ? `<div class="cdots">${list.map((_, i) => `<i class="${i === idx ? 'on' : ''}"></i>`).join('')}</div>` : ''}
+      <button class="x detail-x" data-act="closeModal" title="Zavřít">✕</button>
     </div>
-    <button class="btn primary wide" style="margin-top:10px" data-act="closeModal">Zavřít</button>
-    ${url ? `<div class="credit"><a href="https://${/cs\.wikipedia/.test(url) ? 'cs' : 'en'}.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">Wikipedie</a></div>` : ''}
-  </div></div>`;
+    <div class="detail-body">
+      <div class="intro-name">${nameHtml(a)} ${speakBtn(a)}</div>
+      <div class="intro-sub">${esc(a.la)} · ${g.icon} ${g.name}</div>
+      <p class="center small muted">Viděno ${p.s}×, správně ${p.c}×, špatně ${p.w}×</p>
+      <div class="detail-actions">
+        ${list.length ? `<button class="btn ghost small" data-act="badImg" title="Fotka nesedí? Skryj ji.">🚫 Tahle fotka nesedí</button>` : ''}
+        <a class="btn ghost small" href="https://cs.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">📖 Wikipedie</a>
+      </div>
+    </div>
+  </div>`;
 }
 
 function questionBody(it, L) {
@@ -1673,7 +1696,7 @@ $app.addEventListener('click', e => {
     case 'nextImg': EGG = false; S.openIdx++; { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
     case 'badImg': {
       const a = ANIMALS.find(x => x.id === S.open);
-      const list = imgsOf(a); const url = list[S.openIdx % list.length];
+      const list = imgsOf(a); const url = list[Math.min(S.openIdx || 0, list.length - 1)];
       if (url && confirm('Skrýt tuto fotku? (Např. když ukazuje něco jiného než zvíře.)')) {
         BAD.add(url); store.set(K.bad, [...BAD]); S.openIdx = 0;
         const y = window.scrollY; render(); window.scrollTo(0, y);
@@ -1693,6 +1716,16 @@ function applyAtlasSearch() {
   });
   const empty = $app.querySelector('.search-empty'); if (empty) empty.hidden = shown > 0;
 }
+document.addEventListener('scroll', e => {
+  const c = e.target;
+  if (!c.matches || !c.matches('[data-carousel]')) return;
+  const i = Math.round(c.scrollLeft / c.clientWidth);
+  if (i === S.openIdx) return;
+  S.openIdx = i; EGG = false;
+  const nameEl = $app.querySelector('.detail .intro-name'); if (nameEl && S.open) nameEl.innerHTML = `${nameHtml(ANIMALS.find(x => x.id === S.open))} ${speakBtn(ANIMALS.find(x => x.id === S.open))}`;
+  $app.querySelectorAll('.cdots i').forEach((d, k) => d.classList.toggle('on', k === i));
+}, true);
+
 $app.addEventListener('input', e => {
   if (e.target.matches('[data-search]')) { S.q = e.target.value; applyAtlasSearch(); }
 });
