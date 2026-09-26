@@ -44,7 +44,7 @@ let marks = {};
 try { marks = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch (e) {} };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fileKey = url => { const p = url.split('/'); return decodeURIComponent(/px-/.test(p[p.length - 1]) ? p[p.length - 2] : p[p.length - 1]); };
+const fileKey = url => { const p = url.split(/[?#]/)[0].split('/'); return decodeURIComponent(/px-/.test(p[p.length - 1]) ? p[p.length - 2] : p[p.length - 1]); };
 
 async function wikiThumbs(host, titles) {
   const out = {};
@@ -66,7 +66,8 @@ async function wikiThumbs(host, titles) {
   const app = await (await fetch('./?review=' + Date.now())).text();
   const RAW = app.match(/const RAW = `([\s\S]*?)`;/)[1];
   const MAP_RE = eval(app.match(/const MAP_RE = (.*);/)[1]);
-  const isMap = u => MAP_RE.test(fileKey(u).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/_/g, ' '));
+  const BLOCKED = eval('new Set(' + app.match(/const BLOCKED_FILES = new Set\((\[[\s\S]*?\])\);/)[1] + ')');
+  const isMap = u => BLOCKED.has(fileKey(u)) || MAP_RE.test(fileKey(u).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/_/g, ' '));
   const GROUPS = { kru: '🌀 Kruhoústí', par: '🦈 Paryby', ryb: '🐟 Ryby', obo: '🐸 Obojživelníci', pla: '🦎 Plazi', pta: '🐦 Ptáci', sav: '🐘 Savci' };
   const animals = RAW.trim().split('\n').map(l => { const [g, cz, la] = l.split('|').map(s => s.trim()); return { g, cz, la }; });
   const [en, csLa, csCz, de] = await Promise.all([
