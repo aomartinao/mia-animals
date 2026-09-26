@@ -677,7 +677,7 @@ const SCREENS = {
     </div>
 
     <div class="foot">
-      <button class="btn blue wide" data-act="share" style="margin-bottom:10px">📤 Poslat kamarádům</button>
+      <button class="btn blue wide" data-act="share" style="margin-bottom:10px">📤 Pošli apku kamarádům</button>
       <button class="btn ghost small" data-act="sound">${SOUND ? '🔊 Zvuk zapnutý' : '🔇 Zvuk vypnutý'}</button>
       <button class="btn ghost small" data-act="reset">Smazat pokrok</button>
       ${noImg.length && IMG_STATE === 'ok' ? `<div class="muted small" style="margin-top:6px">Bez obrázku (nebudou v otázkách): ${noImg.map(a => esc(a.cz)).join(', ')}</div>` : ''}
@@ -1350,23 +1350,28 @@ SCREENS.onboard = function () {
       </div>
       <button class="btn primary wide" data-act="onbNext" autofocus>Začít</button>`;
   } else if (step === 'install') {
-    const ios = isIOS;
+    const ios = (O.os || (isIOS ? 'ios' : 'android')) === 'ios';
     body = `<div class="big-emoji">📲</div>
       <h1>Přidej si appku na plochu</h1>
       <p style="font-weight:700">Jen tak se ti <b>pokrok spolehlivě uloží</b>. V prohlížeči ho ${ios ? 'iPhone po týdnu může smazat' : 'můžeš snadno ztratit'}.</p>
+      <div class="tabs" style="margin-top:14px">
+        <button class="btn tab ${ios ? 'on' : ''}" data-act="onbOs" data-os="ios">🍎 iPhone</button>
+        <button class="btn tab ${ios ? '' : 'on'}" data-act="onbOs" data-os="android">🤖 Android</button>
+      </div>
       ${inAppBrowser ? `<div class="warn">Máš odkaz otevřený v aplikaci (Instagram, Messenger…). Nejdřív ho otevři v ${ios ? 'Safari' : 'Chromu'}: ťukni na ⋯ a „Otevřít v prohlížeči“.</div>` : ''}
-      ${!ios && installPrompt ? `<button class="btn primary wide" data-act="onbInstall" style="margin:10px 0">📲 Přidat na plochu</button>` : `
+      ${!ios && installPrompt && isAndroid ? `<button class="btn primary wide" data-act="onbInstall" style="margin:10px 0">📲 Přidat na plochu</button>` : `
       <div class="lb" style="text-align:left;margin:16px 0">
         ${ios ? `
         <div class="lb-row"><span class="lb-rank">1</span><span>Dole v Safari ťukni na <b>Sdílet</b> <span style="font-size:20px">⬆️</span><br><span class="vs">(v novějším iOS nejdřív na ⋯)</span></span></div>
         <div class="lb-row"><span class="lb-rank">2</span><span>Vyber <b>Přidat na plochu</b> <span style="font-size:20px">➕</span></span></div>
         <div class="lb-row"><span class="lb-rank">3</span><span>Ťukni na <b>Přidat</b></span></div>
         <div class="lb-row"><span class="lb-rank">4</span><span>Otevři appku <b>🦊 Zvířata</b> z plochy a pokračuj tam</span></div>` : `
-        <div class="lb-row"><span class="lb-rank">1</span><span>V Chromu ťukni vpravo nahoře na <b>⋮</b></span></div>
-        <div class="lb-row"><span class="lb-rank">2</span><span>Vyber <b>Přidat na plochu</b> nebo <b>Nainstalovat aplikaci</b></span></div>
-        <div class="lb-row"><span class="lb-rank">3</span><span>Otevři appku <b>🦊 Zvířata</b> z plochy</span></div>`}
+        <div class="lb-row"><span class="lb-rank">1</span><span>V Chromu ťukni vpravo nahoře na <b>⋮</b><br><span class="vs">(Samsung Internet: dole na <b>≡</b>)</span></span></div>
+        <div class="lb-row"><span class="lb-rank">2</span><span>Vyber <b>Přidat na plochu</b> nebo <b>Instalovat aplikaci</b><br><span class="vs">(Samsung: <b>Přidat stránku do → Plocha</b>)</span></span></div>
+        <div class="lb-row"><span class="lb-rank">3</span><span>Potvrď <b>Přidat</b> / <b>Instalovat</b></span></div>
+        <div class="lb-row"><span class="lb-rank">4</span><span>Otevři appku <b>🦊 Zvířata</b> z plochy</span></div>`}
       </div>`}
-      <button class="btn ghost wide" data-act="onbNext">${ios ? 'Pokračovat v prohlížeči' : 'Teď ne'}</button>`;
+      <button class="btn ghost wide" data-act="onbNext">Pokračovat v prohlížeči</button>`;
   } else if (step === 'nick') {
     body = `<div class="big-emoji">🏆</div>
       <h1>Jak ti máme říkat?</h1>
@@ -1425,6 +1430,7 @@ $app.addEventListener('click', e => {
     case 'toggleAll': SELECTED = SELECTED.length === GROUPS.length ? [] : GROUPS.map(g => g.id); store.set(K.sel, SELECTED); render(); break;
     case 'share': shareApp(); break;
     case 'onbNext': onboardNext(); break;
+    case 'onbOs': S.O.os = actEl.dataset.os; render(); break;
     case 'onbInstall':
       if (installPrompt) { installPrompt.prompt(); installPrompt.userChoice.then(c => { installPrompt = null; if (c.outcome === 'accepted') onboardNext(); else render(); }).catch(() => {}); }
       break;
