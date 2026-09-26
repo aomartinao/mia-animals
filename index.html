@@ -1004,7 +1004,6 @@ function atlasModal() {
         ${list.length ? list.map(u => picHtml(u, a, 'whole slide')).join('') : picHtml(null, a, 'whole slide')}
       </div>
       ${list.length > 1 ? `<div class="cdots">${list.map((_, i) => `<i class="${i === idx ? 'on' : ''}"></i>`).join('')}</div>` : ''}
-      <button class="x detail-x" data-act="closeModal" title="Zavřít">✕</button>
     </div>
     <div class="detail-body">
       <div class="intro-name">${nameHtml(a)} ${speakBtn(a)}</div>
@@ -1014,6 +1013,7 @@ function atlasModal() {
         ${list.length ? `<button class="btn ghost small" data-act="badImg" title="Fotka nesedí? Skryj ji.">🚫 Tahle fotka nesedí</button>` : ''}
         <a class="btn ghost small" href="https://cs.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">📖 Wikipedie</a>
       </div>
+      <button class="btn primary wide" style="margin-top:12px" data-act="closeModal">Zavřít</button>
     </div>
   </div>`;
 }
