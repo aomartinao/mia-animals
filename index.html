@@ -249,7 +249,7 @@
   .duel-card { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; }
   .duel-card .dn { flex: 1; }
   .vs { font-size: 13px; color: var(--muted); font-weight: 700; }
-  .pic img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .pic, .pic img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
   .egg { display: inline-block; color: #ff4fa3; animation: eggwiggle .6s ease-in-out 2, eggpop .35s cubic-bezier(.2,1.6,.4,1); }
   @keyframes eggwiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
   @keyframes eggpop { from { transform: scale(.6); opacity: 0; } }
@@ -610,7 +610,7 @@ const nameHtml = a => EGG && a.id === CHIMP ? `<span class="egg">${EGG_NAME} �
 function eggVisible() {
   if (S.screen === 'atlas') return !!S.open;
   if (S.screen === 'cards') return S.C.flipped;
-  if (S.screen === 'lesson') { const it = S.L.queue[S.L.i]; return it.type === 'intro' || !!it.state; }
+  if (S.screen === 'lesson') { if (S.L.exam || S.L.duel) return false; const it = S.L.queue[S.L.i]; return it.type === 'intro' || !!it.state; }
   return false;
 }
 function toggleEgg() {
@@ -628,7 +628,7 @@ let eggTaps = [], eggTimer = null, eggSuppressClick = false;
 document.addEventListener('pointerdown', e => {
   if (!e.target.closest('.pic[data-chimp]')) return;
   clearTimeout(eggTimer);
-  eggTimer = setTimeout(() => { eggTimer = null; if (toggleEgg()) { eggSuppressClick = true; eggTaps = []; } }, 650);
+  eggTimer = setTimeout(() => { eggTimer = null; if (toggleEgg()) { eggSuppressClick = true; eggTaps = []; } }, 450);
 });
 document.addEventListener('pointerup', e => {
   const wasPress = eggTimer !== null;
@@ -646,7 +646,7 @@ const PRAISE = ['Výborně!', 'Super!', 'Paráda!', 'Skvělé!', 'Přesně tak!'
 function picHtml(url, a, cls = '') {
   const g = a ? GROUP_BY_ID[a.g] : null;
   return `<div class="pic ${cls}"${a && a.id === CHIMP ? ' data-chimp' : ''}>${url
-    ? `<img src="${esc(url)}" alt="" crossorigin="anonymous" referrerpolicy="no-referrer" onload="focusImg(this)" onerror="imgError(this,'${g ? g.icon : '❓'}')">`
+    ? `<img src="${esc(url)}" alt="" draggable="false" crossorigin="anonymous" referrerpolicy="no-referrer" onload="focusImg(this)" onerror="imgError(this,'${g ? g.icon : '❓'}')">`
     : `<span class="fallback">${g ? g.icon : '❓'}</span>`}</div>`;
 }
 /* Smart framing: crop each photo to the frame around its most detailed
@@ -1085,6 +1085,7 @@ function answer(it, ok, extra) {
 }
 
 function next() {
+  EGG = false;
   const L = S.L;
   L.done++; L.i++;
   if (L.i >= L.queue.length) {
