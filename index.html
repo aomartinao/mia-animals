@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#58cc02">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/smartcrop@2.0.5/smartcrop.js" async onload="document.querySelectorAll('.pic img').forEach(focusImg)"></script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦊</text></svg>">
 <style>
   :root {
@@ -77,7 +78,8 @@
   .pic img { width: 100%; height: 100%; object-fit: contain; background: #f7f7f7; }
   .pic .fallback { font-size: 64px; }
   .pic.sm { aspect-ratio: 1 / 1; }
-  .imgopt .pic img, .acard .pic img, .mistake .pic img { object-fit: contain; background: #f3f3f3; }
+  .pic img { object-fit: cover; }
+  .pic.whole img { object-fit: contain; }
   .options { display: grid; gap: 10px; margin-top: 16px; }
   .opt { text-align: left; font-weight: 700; font-size: 18px; padding: 14px 16px; }
   .opt.correct { border-color: var(--ok-ink); background: var(--ok-bg); color: var(--ok-ink); }
@@ -346,7 +348,7 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1' };
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1' };
 
 let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
 let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
@@ -509,8 +511,42 @@ const PRAISE = ['Výborně!', 'Super!', 'Paráda!', 'Skvělé!', 'Přesně tak!'
 function picHtml(url, a, cls = '') {
   const g = a ? GROUP_BY_ID[a.g] : null;
   return `<div class="pic ${cls}">${url
-    ? `<img src="${esc(url)}" alt="" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'fallback',textContent:'${g ? g.icon : '❓'}'}))">`
+    ? `<img src="${esc(url)}" alt="" crossorigin="anonymous" referrerpolicy="no-referrer" onload="focusImg(this)" onerror="imgError(this,'${g ? g.icon : '❓'}')">`
     : `<span class="fallback">${g ? g.icon : '❓'}</span>`}</div>`;
+}
+/* Smart framing: crop each photo to the frame around its most detailed
+ * region (usually the animal), instead of the plain centre. */
+const FOCUS = store.get(K.focus, {});
+let focusSave = null;
+function focusImg(img) {
+  const frame = img.parentElement;
+  if (!frame || frame.classList.contains('whole') || !img.naturalWidth) return;
+  const fw = frame.clientWidth, fh = frame.clientHeight;
+  if (!fw || !fh) return;
+  const key = img.src + '|' + (fw / fh).toFixed(2);
+  if (FOCUS[key]) { img.style.objectPosition = FOCUS[key]; return; }
+  if (!window.smartcrop || img.dataset.nocors) return;
+  const W = img.naturalWidth, H = img.naturalHeight;
+  try {
+    smartcrop.crop(img, { width: fw, height: fh, skinWeight: 0.6 }).then(r => {
+      const c = r.topCrop;
+      const px = W > c.width + 1 ? c.x / (W - c.width) * 100 : 50;
+      const py = H > c.height + 1 ? c.y / (H - c.height) * 100 : 50;
+      const pos = `${Math.round(px)}% ${Math.round(py)}%`;
+      FOCUS[key] = pos;
+      img.style.objectPosition = pos;
+      clearTimeout(focusSave);
+      focusSave = setTimeout(() => store.set(K.focus, FOCUS), 500);
+    }).catch(() => {});
+  } catch (e) { /* canvas blocked: keep centre */ }
+}
+function imgError(img, icon) {
+  if (img.hasAttribute('crossorigin')) {
+    // server didn't allow CORS: show the photo anyway, just without smart framing
+    img.removeAttribute('crossorigin'); img.dataset.nocors = '1'; img.src = img.src;
+    return;
+  }
+  img.replaceWith(Object.assign(document.createElement('span'), { className: 'fallback', textContent: icon }));
 }
 const speakBtn = a => `<button class="speak" data-say="${esc(a.cz)}" title="Přečíst nahlas">🔊</button>`;
 function dots(a) { const b = prog(a).b; return `<div class="dots">${[1, 2, 3, 4, 5].map(i => `<i class="${b >= i ? 'on' : ''}"></i>`).join('')}</div>`; }
@@ -728,7 +764,7 @@ function atlasModal() {
   const url = list[idx];
   const p = prog(a);
   return `<div class="modal-bg" data-act="closeModal"><div class="modal" data-stop>
-    ${picHtml(url, a)}
+    ${picHtml(url, a, 'whole')}
     <div class="intro-name">${esc(a.cz)} ${speakBtn(a)}</div>
     <div class="intro-sub">${esc(a.la)} · ${GROUP_BY_ID[a.g].icon} ${GROUP_BY_ID[a.g].name}</div>
     <p class="center small muted">Viděno ${p.s}×, správně ${p.c}×, špatně ${p.w}×</p>
