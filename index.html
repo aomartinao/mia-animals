@@ -786,7 +786,19 @@ function render() {
   const fn = SCREENS[S.screen];
   // keep the horizontal position of the group chips when re-rendering
   const chips = $app.querySelector('.groups'), chipsX = chips ? chips.scrollLeft : 0;
+  // remember already-loaded photos so a re-render (e.g. after answering) doesn't blink
+  const loaded = new Map();
+  $app.querySelectorAll('.pic img').forEach(im => { if (im.complete && im.naturalWidth) loaded.set(im.getAttribute('src'), im.parentElement); });
   $app.innerHTML = fn();
+  if (loaded.size) $app.querySelectorAll('.pic img').forEach(im => {
+    const old = loaded.get(im.getAttribute('src')); if (!old) return;
+    loaded.delete(im.getAttribute('src'));
+    const frame = im.parentElement;
+    frame.classList.remove('pop');
+    frame.style.cssText = old.style.cssText;
+    frame.classList.toggle('fit', old.classList.contains('fit'));
+    im.replaceWith(old.querySelector('img'));
+  });
   if (S.screen === 'atlas' && S.q) applyAtlasSearch();
   const chips2 = $app.querySelector('.groups');
   if (chips2 && chipsX) chips2.scrollLeft = chipsX;
