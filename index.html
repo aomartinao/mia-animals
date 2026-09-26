@@ -469,7 +469,7 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v6', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1' };
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v6', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1', hashes: 'zv-hashes-v1', dupes: 'zv-dupes-v1' };
 
 let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
 let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
@@ -561,7 +561,52 @@ const BLOCKED_FILES = new Set([
   'Human.svg',                       // člověk rozumný: drawing
 ]);
 const isMapImage = u => BLOCKED_FILES.has(fileKey(u)) || MAP_RE.test(fileKey(u).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/_/g, ' '));
-const imgsOf = a => (IMAGES[a.id] || []).filter(u => !BAD.has(u) && !isMapImage(u));
+const imgsOf = a => (IMAGES[a.id] || []).filter(u => !BAD.has(u) && !isMapImage(u) && !DUPES.has(fileKey(u)));
+
+/* Same photo under different file names (re-uploads, resized, mirrored) is
+ * found by a tiny difference hash (dHash, 9x8) of a small thumbnail, also
+ * computed for the mirrored image. Runs once in the background; cached. */
+const HASHES = store.get(K.hashes, {});          // fileKey -> [hash, mirroredHash]
+let DUPES = new Set(store.get(K.dupes, []));
+const DUP_MAX_BITS = 6;                          // of 64; re-encodes/flips land ~0-4
+function dhash(img, mirror) {
+  const c = document.createElement('canvas'); c.width = 9; c.height = 8;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  if (mirror) { x.translate(9, 0); x.scale(-1, 1); }
+  x.drawImage(img, 0, 0, 9, 8);
+  const d = x.getImageData(0, 0, 9, 8).data;
+  const g = i => d[i * 4] * .299 + d[i * 4 + 1] * .587 + d[i * 4 + 2] * .114;
+  let bits = '';
+  for (let y = 0; y < 8; y++) for (let k = 0; k < 8; k++) bits += g(y * 9 + k) > g(y * 9 + k + 1) ? '1' : '0';
+  return bits;
+}
+const hamming = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++; return n; };
+const smallThumb = u => u.replace(/\/\d+px-/, '/120px-');
+const loadForHash = u => new Promise(res => {
+  const im = new Image(); im.crossOrigin = 'anonymous'; im.referrerPolicy = 'no-referrer';
+  im.onload = () => res(im); im.onerror = () => res(null); im.src = u;
+});
+async function dedupePhotos() {
+  const todo = [...new Set(Object.values(IMAGES).flat())].filter(u => !HASHES[fileKey(u)]);
+  for (let i = 0; i < todo.length; i += 4) {
+    await Promise.all(todo.slice(i, i + 4).map(async u => {
+      const im = await loadForHash(smallThumb(u));
+      if (!im) return;
+      try { HASHES[fileKey(u)] = [dhash(im, false), dhash(im, true)]; } catch (e) { /* canvas blocked */ }
+    }));
+  }
+  if (todo.length) store.set(K.hashes, HASHES);
+  const d = new Set();
+  Object.values(IMAGES).forEach(list => {
+    const kept = [];
+    list.forEach(u => {
+      const h = HASHES[fileKey(u)]; if (!h) return;
+      if (kept.some(k => hamming(k, h[0]) <= DUP_MAX_BITS || hamming(k, h[1]) <= DUP_MAX_BITS)) d.add(fileKey(u));
+      else kept.push(h[0]);
+    });
+  });
+  DUPES = d; store.set(K.dupes, [...d]);
+}
 const hasImg = a => imgsOf(a).length > 0;
 const pickImg = a => { const l = imgsOf(a); return l.length ? l[Math.floor(Math.random() * l.length)] : null; };
 function preload(urls) { urls.forEach(u => { if (u) { const i = new Image(); i.src = u; } }); }
@@ -1769,6 +1814,7 @@ document.addEventListener('keydown', e => {
 /* ------------------------------------------------------------------ */
 render();
 loadImages(false).then(() => {
+  setTimeout(() => dedupePhotos().catch(() => {}), 1500);
   let duelId = new URLSearchParams(location.search).get('duel');
   if (!(duelId && /^[a-z0-9]{6,24}$/.test(duelId))) duelId = null;
   if (duelId) history.replaceState(null, '', appUrl());
