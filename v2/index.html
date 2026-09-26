@@ -249,6 +249,10 @@
   .duel-card { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; }
   .duel-card .dn { flex: 1; }
   .vs { font-size: 13px; color: var(--muted); font-weight: 700; }
+  .pic img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .egg { display: inline-block; color: #ff4fa3; animation: eggwiggle .6s ease-in-out 2, eggpop .35s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes eggwiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
+  @keyframes eggpop { from { transform: scale(.6); opacity: 0; } }
 </style>
 </head>
 <body>
@@ -573,20 +577,19 @@ function beep(ok) {
     });
   } catch (e) { /* no audio */ }
 }
-function say(text) {
+function say(text, lang = 'cs-CZ') {
   if (!SOUND || !('speechSynthesis' in window)) return;
   try {
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'cs-CZ'; u.rate = 0.9;
-    const v = speechSynthesis.getVoices().find(v => (v.lang || '').toLowerCase().startsWith('cs'));
+    u.lang = lang; u.rate = 0.9;
+    const v = speechSynthesis.getVoices().find(v => (v.lang || '').toLowerCase().replace('_', '-').startsWith(lang.slice(0, 2).toLowerCase()));
     if (v) u.voice = v;
     speechSynthesis.cancel(); speechSynthesis.speak(u);
   } catch (e) { /* ignore */ }
 }
 if ('speechSynthesis' in window) { try { speechSynthesis.getVoices(); } catch (e) {} }
 
-function confetti() {
-  const em = ['🎉', '⭐', '🐸', '🦊', '🐟', '🦜', '🐘', '✨'];
+function confetti(em = ['🎉', '⭐', '🐸', '🦊', '🐟', '🦜', '🐘', '✨']) {
   for (let i = 0; i < 28; i++) {
     const s = document.createElement('div');
     s.className = 'confetti'; s.textContent = sample(em);
@@ -598,10 +601,51 @@ function confetti() {
   }
 }
 
+/* Easter egg for Mia: triple-tap or long-press the chimpanzee photo
+ * (wherever its name is visible) and it becomes "Mia, la mia scimmia". */
+const CHIMP = 'šimpanz učenlivý';
+const EGG_NAME = 'Mia, la mia scimmia';
+let EGG = false;
+const nameHtml = a => EGG && a.id === CHIMP ? `<span class="egg">${EGG_NAME} 🐒❤️</span>` : esc(a.cz);
+function eggVisible() {
+  if (S.screen === 'atlas') return !!S.open;
+  if (S.screen === 'cards') return S.C.flipped;
+  if (S.screen === 'lesson') { const it = S.L.queue[S.L.i]; return it.type === 'intro' || !!it.state; }
+  return false;
+}
+function toggleEgg() {
+  if (!eggVisible()) return false;
+  EGG = !EGG;
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+  if (EGG) {
+    confetti(['🐒', '🐵', '🍌', '❤️', '🙈', '🍌', '💕']);
+    say(EGG_NAME, 'it-IT');
+    try { navigator.vibrate && navigator.vibrate([20, 40, 20, 40, 60]); } catch (e) {}
+  }
+  return true;
+}
+let eggTaps = [], eggTimer = null, eggSuppressClick = false;
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest('.pic[data-chimp]')) return;
+  clearTimeout(eggTimer);
+  eggTimer = setTimeout(() => { eggTimer = null; if (toggleEgg()) { eggSuppressClick = true; eggTaps = []; } }, 650);
+});
+document.addEventListener('pointerup', e => {
+  const wasPress = eggTimer !== null;
+  clearTimeout(eggTimer); eggTimer = null;
+  if (!wasPress || !e.target.closest('.pic[data-chimp]')) return;
+  const now = Date.now();
+  eggTaps = eggTaps.filter(t => now - t < 700); eggTaps.push(now);
+  if (eggTaps.length >= 3 && toggleEgg()) eggTaps = [];
+});
+document.addEventListener('pointercancel', () => { clearTimeout(eggTimer); eggTimer = null; });
+document.addEventListener('click', e => { if (eggSuppressClick) { eggSuppressClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('contextmenu', e => { if (e.target.closest('.pic[data-chimp]')) e.preventDefault(); });
+
 const PRAISE = ['Výborně!', 'Super!', 'Paráda!', 'Skvělé!', 'Přesně tak!', 'Jde ti to!', 'Bezva!'];
 function picHtml(url, a, cls = '') {
   const g = a ? GROUP_BY_ID[a.g] : null;
-  return `<div class="pic ${cls}">${url
+  return `<div class="pic ${cls}"${a && a.id === CHIMP ? ' data-chimp' : ''}>${url
     ? `<img src="${esc(url)}" alt="" crossorigin="anonymous" referrerpolicy="no-referrer" onload="focusImg(this)" onerror="imgError(this,'${g ? g.icon : '❓'}')">`
     : `<span class="fallback">${g ? g.icon : '❓'}</span>`}</div>`;
 }
@@ -639,7 +683,9 @@ function imgError(img, icon) {
   }
   img.replaceWith(Object.assign(document.createElement('span'), { className: 'fallback', textContent: icon }));
 }
-const speakBtn = a => `<button class="speak" data-say="${esc(a.cz)}" title="Přečíst nahlas">🔊</button>`;
+const speakBtn = a => EGG && a.id === CHIMP
+  ? `<button class="speak" data-say="${EGG_NAME}" data-lang="it-IT" title="Přečíst nahlas">🔊</button>`
+  : `<button class="speak" data-say="${esc(a.cz)}" title="Přečíst nahlas">🔊</button>`;
 function dots(a) { const b = prog(a).b; return `<div class="dots">${[1, 2, 3, 4, 5].map(i => `<i class="${b >= i ? 'on' : ''}"></i>`).join('')}</div>`; }
 
 /* ------------------------------------------------------------------ *
@@ -690,7 +736,7 @@ function makeQuestion(a, level) {
  *  App state + router                                                 *
  * ------------------------------------------------------------------ */
 let S = { screen: 'loading' };
-function go(screen, extra = {}) {
+function go(screen, extra = {}) { EGG = false;
   S = { screen, ...extra }; render(); window.scrollTo(0, 0);
   $app.classList.remove('enter'); void $app.offsetWidth; $app.classList.add('enter');
   clearTimeout(go.t); go.t = setTimeout(() => $app.classList.remove('enter'), 700);
@@ -778,7 +824,7 @@ const SCREENS = {
     if (it.type === 'intro') {
       body = `<span class="badge">Nové zvíře</span>
         ${picHtml(it.img, it.a, 'pop')}
-        <div class="intro-name">${esc(it.a.cz)} ${speakBtn(it.a)}</div>
+        <div class="intro-name">${nameHtml(it.a)} ${speakBtn(it.a)}</div>
         <div class="intro-sub">${esc(it.a.la)} · ${GROUP_BY_ID[it.a.g].icon} ${GROUP_BY_ID[it.a.g].name}</div>
         <div class="spacer"></div>
         <div class="feedback neutral"><button class="btn primary wide" data-act="next" autofocus>Pokračovat</button></div>`;
@@ -831,7 +877,7 @@ const SCREENS = {
       <div class="q-title">Víš, jak se jmenuje?</div>
       <div class="flash" data-act="flip">${picHtml(C.img, a, 'pop')}</div>
       <div class="reveal">${C.flipped
-        ? `<div class="intro-name" style="margin-top:8px">${esc(a.cz)} ${speakBtn(a)}</div><div class="intro-sub">${esc(a.la)}</div>`
+        ? `<div class="intro-name" style="margin-top:8px">${nameHtml(a)} ${speakBtn(a)}</div><div class="intro-sub">${esc(a.la)}</div>`
         : `<span class="muted">Řekni jméno nahlas a pak ťukni na „Ukázat“.</span>`}</div>
       <div class="spacer"></div>
       <div class="feedback neutral">${C.flipped
@@ -873,7 +919,7 @@ function atlasModal() {
   const p = prog(a);
   return `<div class="modal-bg" data-act="closeModal"><div class="modal" data-stop>
     ${picHtml(url, a, 'whole')}
-    <div class="intro-name">${esc(a.cz)} ${speakBtn(a)}</div>
+    <div class="intro-name">${nameHtml(a)} ${speakBtn(a)}</div>
     <div class="intro-sub">${esc(a.la)} · ${GROUP_BY_ID[a.g].icon} ${GROUP_BY_ID[a.g].name}</div>
     <p class="center small muted">Viděno ${p.s}×, správně ${p.c}×, špatně ${p.w}×</p>
     <div class="row" style="margin-top:8px">
@@ -927,9 +973,9 @@ function questionBody(it, L) {
     const title = nice ? sample(PRAISE)
       : st.ok ? 'Skoro!'
       : 'Správně je:';
-    const msg = nice ? `${esc(a.cz)}`
+    const msg = nice ? `${nameHtml(a)}`
       : st.ok ? `${st.verdict === 'accent' ? 'Pozor na háčky a čárky' : 'Malý překlep'}. Píše se: <b>${esc(a.cz)}</b>`
-      : `<b>${esc(a.cz)}</b>`;
+      : `<b>${nameHtml(a)}</b>`;
     fb = `<div class="spacer"></div><div class="feedback ${st.ok ? 'ok' : 'bad'}">
       <h3>${st.ok ? '✅' : '❌'} ${title}</h3><p>${msg} ${speakBtn(a)}</p>
       <button class="btn primary wide ${st.ok ? '' : 'bad'}" data-act="next" autofocus>Pokračovat</button></div>`;
@@ -1476,7 +1522,7 @@ SCREENS.onboard = function () {
  * ------------------------------------------------------------------ */
 $app.addEventListener('click', e => {
   const sayBtn = e.target.closest('[data-say]');
-  if (sayBtn) { e.stopPropagation(); say(sayBtn.dataset.say); return; }
+  if (sayBtn) { e.stopPropagation(); say(sayBtn.dataset.say, sayBtn.dataset.lang); return; }
 
   const g = e.target.closest('[data-group]');
   if (g) {
