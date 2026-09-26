@@ -455,7 +455,7 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v2', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1' };
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v3', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1' };
 
 let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
 let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
@@ -510,15 +510,18 @@ async function loadImages(force) {
   const fresh = cached && Date.now() - cached.t < 14 * 864e5 && cached.v === ANIMALS.length;
   if (cached && fresh && !force) { IMAGES = cached.data; IMG_STATE = 'ok'; return; }
   try {
-    const [en, cs, de] = await Promise.all([
+    // Czech Wikipedia by Latin name first: a Czech name can redirect to a different
+    // species (e.g. "Vlk mořský" -> European seabass instead of Anarhichas lupus)
+    const [en, csLa, csCz, de] = await Promise.all([
       wikiThumbs('en.wikipedia.org', ANIMALS.map(a => a.la)).catch(() => ({})),
+      wikiThumbs('cs.wikipedia.org', ANIMALS.map(a => a.la)).catch(() => ({})),
       wikiThumbs('cs.wikipedia.org', ANIMALS.map(a => a.cz)).catch(() => ({})),
       wikiThumbs('de.wikipedia.org', ANIMALS.map(a => a.la)).catch(() => ({})),
     ]);
     const data = {};
     ANIMALS.forEach(a => {
       const list = [];
-      [en[a.la], cs[a.cz], de[a.la]].forEach(u => { if (u && !isMapImage(u) && !list.some(x => fileKey(x) === fileKey(u))) list.push(u); });
+      [en[a.la], csLa[a.la] || csCz[a.cz], de[a.la]].forEach(u => { if (u && !isMapImage(u) && !list.some(x => fileKey(x) === fileKey(u))) list.push(u); });
       if (list.length) data[a.id] = list;
     });
     if (Object.keys(data).length === 0) throw new Error('no images');
