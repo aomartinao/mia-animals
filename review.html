@@ -70,17 +70,18 @@ async function wikiThumbs(host, titles) {
   const isMap = u => BLOCKED.has(fileKey(u)) || MAP_RE.test(fileKey(u).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/_/g, ' '));
   const GROUPS = { kru: '🌀 Kruhoústí', par: '🦈 Paryby', ryb: '🐟 Ryby', obo: '🐸 Obojživelníci', pla: '🦎 Plazi', pta: '🐦 Ptáci', sav: '🐘 Savci' };
   const animals = RAW.trim().split('\n').map(l => { const [g, cz, la] = l.split('|').map(s => s.trim()); return { g, cz, la }; });
-  const [en, csLa, csCz, de] = await Promise.all([
+  const extra = ['de', 'fr', 'it', 'es', 'pl', 'nl'];
+  const [en, csLa, csCz, ...others] = await Promise.all([
     wikiThumbs('en.wikipedia.org', animals.map(a => a.la)).catch(() => ({})),
     wikiThumbs('cs.wikipedia.org', animals.map(a => a.la)).catch(() => ({})),
     wikiThumbs('cs.wikipedia.org', animals.map(a => a.cz)).catch(() => ({})),
-    wikiThumbs('de.wikipedia.org', animals.map(a => a.la)).catch(() => ({})),
+    ...extra.map(l => wikiThumbs(l + '.wikipedia.org', animals.map(a => a.la)).catch(() => ({}))),
   ]);
   let html = '', lastG = '';
   animals.forEach((a, i) => {
     if (a.g !== lastG) { html += `<h2>${GROUPS[a.g]}</h2>`; lastG = a.g; }
     const cands = [];
-    [['EN', en[a.la]], ['CS', csLa[a.la] || csCz[a.cz]], ['DE', de[a.la]]].forEach(([src, u]) => {
+    [['EN', en[a.la]], ['CS', csLa[a.la] || csCz[a.cz]], ...extra.map((l, k) => [l.toUpperCase(), others[k][a.la]])].forEach(([src, u]) => {
       if (u && !cands.some(c => fileKey(c.u) === fileKey(u))) cands.push({ src, u });
     });
     html += `<div class="animal"><div class="name">${i + 1}. ${esc(a.cz)}<i>${esc(a.la)}</i></div><div class="row">` +

@@ -469,7 +469,7 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v5', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1' };
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v6', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1' };
 
 let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
 let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
@@ -519,6 +519,7 @@ async function wikiThumbs(host, titles) {
 
 const fileKey = url => { const parts = url.split(/[?#]/)[0].split('/'); return decodeURIComponent(/px-/.test(parts[parts.length - 1]) ? parts[parts.length - 2] : parts[parts.length - 1]); };
 
+const MAX_PHOTOS = 5;
 async function loadImages(force) {
   const cached = store.get(K.imgs, null);
   const fresh = cached && Date.now() - cached.t < 14 * 864e5 && cached.v === ANIMALS.length;
@@ -526,16 +527,20 @@ async function loadImages(force) {
   try {
     // Czech Wikipedia by Latin name first: a Czech name can redirect to a different
     // species (e.g. "Vlk mořský" -> European seabass instead of Anarhichas lupus)
-    const [en, csLa, csCz, de] = await Promise.all([
+    // More Wikipedias by Latin name = more (usually different) lead photos per animal
+    const extra = ['de', 'fr', 'it', 'es', 'pl', 'nl'];
+    const [en, csLa, csCz, ...others] = await Promise.all([
       wikiThumbs('en.wikipedia.org', ANIMALS.map(a => a.la)).catch(() => ({})),
       wikiThumbs('cs.wikipedia.org', ANIMALS.map(a => a.la)).catch(() => ({})),
       wikiThumbs('cs.wikipedia.org', ANIMALS.map(a => a.cz)).catch(() => ({})),
-      wikiThumbs('de.wikipedia.org', ANIMALS.map(a => a.la)).catch(() => ({})),
+      ...extra.map(l => wikiThumbs(l + '.wikipedia.org', ANIMALS.map(a => a.la)).catch(() => ({}))),
     ]);
     const data = {};
     ANIMALS.forEach(a => {
       const list = [];
-      [en[a.la], csLa[a.la] || csCz[a.cz], de[a.la]].forEach(u => { if (u && !isMapImage(u) && !list.some(x => fileKey(x) === fileKey(u))) list.push(u); });
+      [en[a.la], csLa[a.la] || csCz[a.cz], ...others.map(o => o[a.la])].forEach(u => {
+        if (u && list.length < MAX_PHOTOS && !isMapImage(u) && !list.some(x => fileKey(x) === fileKey(u))) list.push(u);
+      });
       if (list.length) data[a.id] = list;
     });
     if (Object.keys(data).length === 0) throw new Error('no images');
