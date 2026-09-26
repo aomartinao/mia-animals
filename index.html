@@ -253,6 +253,8 @@
   .egg { display: inline-block; color: #ff4fa3; animation: eggwiggle .6s ease-in-out 2, eggpop .35s cubic-bezier(.2,1.6,.4,1); }
   @keyframes eggwiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
   @keyframes eggpop { from { transform: scale(.6); opacity: 0; } }
+  .pic.fit::before { content: ""; position: absolute; inset: -30px; background: var(--pic) center / cover; filter: blur(22px) brightness(.55) saturate(1.2); }
+  .pic.fit img { position: relative; object-fit: contain; background: transparent; }
 </style>
 </head>
 <body>
@@ -653,9 +655,24 @@ function picHtml(url, a, cls = '') {
  * region (usually the animal), instead of the plain centre. */
 const FOCUS = store.get(K.focus, {});
 let focusSave = null;
+// Big photos (questions, intro, cards, Atlas detail) take the photo's own
+// shape within limits; beyond them (eels, snakes) the whole animal is shown
+// on a blurred copy of the photo instead of being cropped.
+const FRAME_MIN = 0.8, FRAME_MAX = 1.9;
+function fitMainFrame(img, frame) {
+  if (frame.closest('.acard, .mistake, .imgopt') || frame.classList.contains('sm')) return;
+  const r = img.naturalWidth / img.naturalHeight;
+  frame.style.aspectRatio = String(Math.min(FRAME_MAX, Math.max(FRAME_MIN, r)));
+  if (r > FRAME_MAX * 1.08 || r < FRAME_MIN / 1.08) {
+    frame.classList.add('fit');
+    frame.style.setProperty('--pic', `url("${img.src.replace(/"/g, '%22')}")`);
+  }
+}
 function focusImg(img) {
   const frame = img.parentElement;
-  if (!frame || frame.classList.contains('whole') || !img.naturalWidth) return;
+  if (!frame || !img.naturalWidth) return;
+  fitMainFrame(img, frame);
+  if (frame.classList.contains('whole') || frame.classList.contains('fit')) return;
   const fw = frame.clientWidth, fh = frame.clientHeight;
   if (!fw || !fh) return;
   const key = img.src + '|' + (fw / fh).toFixed(2);
