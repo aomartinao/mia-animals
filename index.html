@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Poznávačka zvířat</title>
+<meta name="theme-color" content="#58cc02">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦊</text></svg>">
+<style>
+  :root {
+    --green: #58cc02; --green-d: #46a302;
+    --red: #ff4b4b; --red-d: #d33131;
+    --blue: #1cb0f6; --blue-d: #1899d6;
+    --orange: #ff9600; --orange-d: #d97f00;
+    --purple: #ce82ff; --purple-d: #a568cc;
+    --bg: #ffffff; --card: #ffffff; --ink: #3c3c3c; --muted: #777;
+    --line: #e5e5e5; --line-d: #cfcfcf;
+    --ok-bg: #d7ffb8; --ok-ink: #58a700;
+    --bad-bg: #ffdfe0; --bad-ink: #ea2b2b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { min-height: 100dvh; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  #app { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); min-height: 100dvh; display: flex; flex-direction: column; }
+  h1, h2, h3 { margin: 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+
+  /* Chunky Duolingo-ish buttons */
+  .btn { border: 2px solid var(--line); border-bottom-width: 4px; background: var(--card); border-radius: 16px;
+    padding: 12px 16px; font-weight: 800; font-size: 16px; text-transform: none; transition: transform .05s; }
+  .btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+  .btn.primary { background: var(--green); border-color: var(--green-d); color: #fff; }
+  .btn.blue { background: var(--blue); border-color: var(--blue-d); color: #fff; }
+  .btn.orange { background: var(--orange); border-color: var(--orange-d); color: #fff; }
+  .btn.purple { background: var(--purple); border-color: var(--purple-d); color: #fff; }
+  .btn.red { background: var(--red); border-color: var(--red-d); color: #fff; }
+  .btn.ghost { border-color: transparent; background: transparent; color: var(--blue); }
+  .btn.ghost:active { transform: none; }
+  .btn[disabled] { background: #e5e5e5; border-color: #e5e5e5; color: #afafaf; cursor: default; transform: none; }
+  .btn.wide { width: 100%; }
+
+  /* Home */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 900; color: var(--green); }
+  .stats { display: flex; gap: 14px; font-weight: 800; }
+  .stats span { display: inline-flex; gap: 4px; align-items: center; }
+  .hero { border: 2px solid var(--line); border-radius: 20px; padding: 16px; margin-bottom: 16px; }
+  .bar { height: 16px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--green); border-radius: 99px; transition: width .3s; }
+  .bar.thin { height: 8px; }
+  .section-title { font-weight: 900; font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 10px; display: flex; justify-content: space-between; align-items: center; }
+  .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .group { text-align: left; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; padding: 10px 12px; background: #fff; }
+  .group.on { border-color: var(--blue); background: #ddf4ff; }
+  .group .gname { font-weight: 800; display: flex; gap: 6px; align-items: center; }
+  .group .gcount { font-size: 12px; color: var(--muted); margin: 4px 0 6px; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mode { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; padding: 14px; min-height: 104px; }
+  .mode .mi { font-size: 30px; line-height: 1; }
+  .mode .mt { font-size: 18px; }
+  .mode .md { font-size: 12px; font-weight: 600; opacity: .9; }
+  .mode.big { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 14px; min-height: 0; }
+  .mode.big .mi { font-size: 40px; }
+  .foot { margin-top: auto; padding-top: 24px; text-align: center; }
+
+  /* Lesson */
+  .lesson-top { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .x { border: none; background: none; font-size: 26px; color: #afafaf; padding: 4px 8px; line-height: 1; }
+  .lesson-top .bar { flex: 1; }
+  .q-title { font-size: 22px; font-weight: 900; margin: 4px 0 14px; }
+  .pic { width: 100%; aspect-ratio: 4 / 3; border-radius: 18px; overflow: hidden; background: #f3f3f3; border: 2px solid var(--line); position: relative; display: flex; align-items: center; justify-content: center; }
+  .pic img { width: 100%; height: 100%; object-fit: contain; background: #f7f7f7; }
+  .pic .fallback { font-size: 64px; }
+  .pic.sm { aspect-ratio: 1 / 1; }
+  .imgopt .pic img, .acard .pic img, .mistake .pic img { object-fit: cover; }
+  .options { display: grid; gap: 10px; margin-top: 16px; }
+  .opt { text-align: left; font-weight: 700; font-size: 18px; padding: 14px 16px; }
+  .opt.correct { border-color: var(--ok-ink); background: var(--ok-bg); color: var(--ok-ink); }
+  .opt.wrong { border-color: var(--bad-ink); background: var(--bad-bg); color: var(--bad-ink); }
+  .imgopts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .imgopt { padding: 6px; border-radius: 18px; }
+  .imgopt .pic { border: none; border-radius: 12px; aspect-ratio: 1 / 1; }
+  .imgopt.correct { border-color: var(--ok-ink); background: var(--ok-bg); }
+  .imgopt.wrong { border-color: var(--bad-ink); background: var(--bad-bg); }
+  .blank { font-size: 24px; font-weight: 900; margin-top: 16px; text-align: center; }
+  .blank u { display: inline-block; min-width: 110px; border-bottom: 3px solid var(--line-d); text-decoration: none; color: var(--blue); }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 16px; }
+  .chip { font-weight: 800; font-size: 18px; padding: 10px 16px; }
+  .chip.correct { border-color: var(--ok-ink); background: var(--ok-bg); color: var(--ok-ink); }
+  .chip.wrong { border-color: var(--bad-ink); background: var(--bad-bg); color: var(--bad-ink); }
+  .typein { width: 100%; font: inherit; font-size: 20px; font-weight: 700; padding: 14px 16px; border-radius: 16px; border: 2px solid var(--line); background: #f7f7f7; margin-top: 16px; outline: none; }
+  .typein:focus { border-color: var(--blue); background: #fff; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .spacer { flex: 1; min-height: 12px; }
+  .intro-name { font-size: 30px; font-weight: 900; text-align: center; margin-top: 16px; }
+  .intro-sub { text-align: center; color: var(--muted); font-style: italic; margin-top: 4px; }
+  .speak { border: none; background: #ddf4ff; color: var(--blue); border-radius: 12px; font-size: 20px; padding: 6px 10px; vertical-align: middle; margin-left: 6px; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; color: var(--purple-d); background: #f5e6ff; border-radius: 8px; padding: 4px 8px; margin-bottom: 8px; }
+
+  .feedback { position: sticky; bottom: 0; margin: 16px -16px calc(-24px - env(safe-area-inset-bottom)); padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); }
+  .feedback.ok { background: var(--ok-bg); color: var(--ok-ink); }
+  .feedback.bad { background: var(--bad-bg); color: var(--bad-ink); }
+  .feedback.neutral { background: #fff; border-top: 2px solid var(--line); }
+  .feedback h3 { font-size: 22px; font-weight: 900; margin-bottom: 4px; }
+  .feedback p { margin: 0 0 12px; font-weight: 700; }
+  .feedback .btn.primary.bad { background: var(--red); border-color: var(--red-d); }
+
+  /* End screen */
+  .center { text-align: center; }
+  .big-emoji { font-size: 84px; line-height: 1; margin: 20px 0 10px; }
+  .results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
+  .res { border: 2px solid; border-radius: 16px; overflow: hidden; }
+  .res .rh { color: #fff; font-size: 12px; font-weight: 900; text-transform: uppercase; padding: 4px; }
+  .res .rv { font-size: 22px; font-weight: 900; padding: 10px 4px; }
+  .grade { font-size: 64px; font-weight: 900; }
+  .mistakes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; text-align: left; margin-top: 10px; }
+  .mistake { border: 2px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .mistake .pic { border: none; border-radius: 0; aspect-ratio: 1/1; }
+  .mistake div.t { padding: 6px 8px; font-size: 13px; }
+  .mistake b { display: block; font-size: 14px; }
+  .mistake s { color: var(--bad-ink); }
+
+  /* Atlas */
+  .atlas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .acard { padding: 0; overflow: hidden; text-align: left; border-radius: 16px; }
+  .acard .pic { border: none; border-radius: 0; aspect-ratio: 1/1; }
+  .acard .an { padding: 8px 10px 10px; font-weight: 800; font-size: 14px; }
+  .dots { display: flex; gap: 3px; margin-top: 5px; }
+  .dots i { width: 14px; height: 5px; border-radius: 3px; background: var(--line); }
+  .dots i.on { background: var(--orange); }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+  .sticky-head { position: sticky; top: 0; background: var(--bg); z-index: 5; padding: 10px 0; margin: -10px 0 0; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+  .modal { background: #fff; border-radius: 20px; padding: 14px; width: 100%; max-width: 520px; max-height: 92dvh; overflow: auto; }
+
+  /* Flashcards */
+  .flash { perspective: 1200px; }
+  .flash .pic { cursor: pointer; }
+  .reveal { min-height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+  .loading { margin: auto; text-align: center; }
+  .spin { font-size: 60px; animation: bob 1s ease-in-out infinite alternate; }
+  @keyframes bob { from { transform: translateY(0) rotate(-8deg); } to { transform: translateY(-12px) rotate(8deg); } }
+  .shake { animation: shake .35s; }
+  @keyframes shake { 0%,100% { transform: translateX(0);} 25% { transform: translateX(-8px);} 75% { transform: translateX(8px);} }
+  .pop { animation: pop .25s; }
+  @keyframes pop { 0% { transform: scale(.96); opacity: .4; } 100% { transform: scale(1); opacity: 1; } }
+  .confetti { position: fixed; top: -20px; font-size: 26px; pointer-events: none; z-index: 100; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+  .warn { background: #fff4e0; border: 2px solid #ffd79a; color: #8a5a00; border-radius: 14px; padding: 10px 12px; font-weight: 700; font-size: 14px; margin-bottom: 12px; }
+  .credit { font-size: 11px; color: #aaa; margin-top: 6px; text-align: right; }
+  .credit a { color: #aaa; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+'use strict';
+
+/* ------------------------------------------------------------------ *
+ *  DATA: the school list (skupina | český název | latinský název)     *
+ *  Latin names are used to look up photos on English Wikipedia; the   *
+ *  Czech name is looked up on Czech Wikipedia as a second source.     *
+ * ------------------------------------------------------------------ */
+const GROUPS = [
+  { id: 'kru', name: 'Kruhoústí',     icon: '🌀', color: '#8e7cc3' },
+  { id: 'par', name: 'Paryby',        icon: '🦈', color: '#3d85c6' },
+  { id: 'ryb', name: 'Ryby',          icon: '🐟', color: '#1cb0f6' },
+  { id: 'obo', name: 'Obojživelníci', icon: '🐸', color: '#58cc02' },
+  { id: 'pla', name: 'Plazi',         icon: '🦎', color: '#ff9600' },
+  { id: 'pta', name: 'Ptáci',         icon: '🐦', color: '#e6a000' },
+  { id: 'sav', name: 'Savci',         icon: '🐘', color: '#ea2b2b' },
+];
+
+const RAW = `
+kru|mihule potoční|Lampetra planeri
+par|máčka skvrnitá|Scyliorhinus canicula
+par|žralok bílý|Carcharodon carcharias
+par|žralok obrovský|Cetorhinus maximus
+par|kladivoun obecný|Sphyrna zygaena
+par|manta obrovská|Mobula birostris
+par|chiméra podivná|Chimaera monstrosa
+ryb|kapr obecný|Cyprinus carpio
+ryb|lín obecný|Tinca tinca
+ryb|candát obecný|Sander lucioperca
+ryb|sumec velký|Silurus glanis
+ryb|štika obecná|Esox lucius
+ryb|amur bílý|Ctenopharyngodon idella
+ryb|pstruh duhový|Oncorhynchus mykiss
+ryb|ďas mořský|Lophius piscatorius
+ryb|platýs velký|Pleuronectes platessa
+ryb|ropušnice obecná|Zoarces viviparus
+ryb|sleď obecný|Clupea harengus
+ryb|úhoř mořský|Conger conger
+ryb|vlk mořský|Anarhichas lupus
+obo|čolek obecný|Lissotriton vulgaris
+obo|mlok skvrnitý|Salamandra salamandra
+obo|skokan zelený|Pelophylax esculentus
+obo|skokan hnědý|Rana temporaria
+obo|kuňka žlutobřichá|Bombina variegata
+obo|ropucha obecná|Bufo bufo
+obo|ropucha zelená|Bufotes viridis
+obo|blatnice skvrnitá|Pelobates fuscus
+obo|rosnička zelená|Hyla arborea
+obo|velemlok čínský|Andrias davidianus
+pla|želva žlutohnědá|Testudo graeca
+pla|želva sloní|Chelonoidis niger
+pla|kareta pravá|Eretmochelys imbricata
+pla|kožatka velká|Dermochelys coriacea
+pla|krokodýl nilský|Crocodylus niloticus
+pla|aligátor severoamerický|Alligator mississippiensis
+pla|kajman šironosý|Caiman latirostris
+pla|gaviál indický|Gavialis gangeticus
+pla|ještěrka obecná|Lacerta agilis
+pla|slepýš křehký|Anguis fragilis
+pla|agama límcová|Chlamydosaurus kingii
+pla|chameleon jemenský|Chamaeleo calyptratus
+pla|varan komodský|Varanus komodoensis
+pla|leguán zelený|Iguana iguana
+pla|bazilišek zelený|Basiliscus plumifrons
+pla|gekon zední|Tarentola mauritanica
+pla|scink šalomounský|Corucia zebrata
+pla|užovka obojková|Natrix natrix
+pla|užovka hladká|Coronella austriaca
+pla|anakonda velká|Eunectes murinus
+pla|krajta královská|Python regius
+pla|kobra indická|Naja naja
+pla|hroznýš královský|Boa constrictor
+pla|chřestýš texaský|Crotalus atrox
+pla|korálovka královská|Lampropeltis pyromelana
+pla|mamba černá|Dendroaspis polylepis
+pla|zmije obecná|Vipera berus
+pta|potápka roháč|Podiceps cristatus
+pta|volavka popelavá|Ardea cinerea
+pta|čáp bílý|Ciconia ciconia
+pta|kachna divoká|Anas platyrhynchos
+pta|husa velká|Anser anser
+pta|labuť velká|Cygnus olor
+pta|káně lesní|Buteo buteo
+pta|orel skalní|Aquila chrysaetos
+pta|jestřáb lesní|Accipiter gentilis
+pta|poštolka obecná|Falco tinnunculus
+pta|sup bělohlavý|Gyps fulvus
+pta|koroptev polní|Perdix perdix
+pta|křepelka polní|Coturnix coturnix
+pta|bažant obecný|Phasianus colchicus
+pta|tetřev hlušec|Tetrao urogallus
+pta|páv korunkatý|Pavo cristatus
+pta|lyska černá|Fulica atra
+pta|slípka zelenonohá|Gallinula chloropus
+pta|čejka chocholatá|Vanellus vanellus
+pta|racek chechtavý|Chroicocephalus ridibundus
+pta|holub hřivnáč|Columba palumbus
+pta|hrdlička zahradní|Streptopelia decaocto
+pta|sova pálená|Tyto alba
+pta|výr velký|Bubo bubo
+pta|kalous ušatý|Asio otus
+pta|sýček obecný|Athene noctua
+pta|puštík obecný|Strix aluco
+pta|kukačka obecná|Cuculus canorus
+pta|dudek chocholatý|Upupa epops
+pta|rorýs obecný|Apus apus
+pta|kolibřík purpurový|Campylopterus hemileucurus
+pta|ledňáček říční|Alcedo atthis
+pta|datel černý|Dryocopus martius
+pta|žluna zelená|Picus viridis
+pta|strakapoud velký|Dendrocopos major
+pta|skřivan polní|Alauda arvensis
+pta|vlaštovka obecná|Hirundo rustica
+pta|jiřička obecná|Delichon urbicum
+pta|konipas bílý|Motacilla alba
+pta|ťuhýk obecný|Lanius collurio
+pta|kos černý|Turdus merula
+pta|sýkora modřinka|Cyanistes caeruleus
+pta|pěnkava obecná|Fringilla coelebs
+pta|stehlík obecný|Carduelis carduelis
+pta|vrabec domácí|Passer domesticus
+pta|špaček obecný|Sturnus vulgaris
+pta|sojka obecná|Garrulus glandarius
+pta|straka obecná|Pica pica
+pta|havran polní|Corvus frugilegus
+pta|vrána obecná|Corvus corone
+pta|brkoslav severní|Bombycilla garrulus
+pta|kormorán velký|Phalacrocorax carbo
+pta|plameňák růžový|Phoenicopterus roseus
+sav|ježura australská|Tachyglossus aculeatus
+sav|ptakopysk podivný|Ornithorhynchus anatinus
+sav|klokan obrovský|Macropus giganteus
+sav|ďábel medvědovitý|Sarcophilus harrisii
+sav|koala medvídkovitý|Phascolarctos cinereus
+sav|ježek západní|Erinaceus europaeus
+sav|krtek obecný|Talpa europaea
+sav|netopýr velký|Myotis myotis
+sav|kočkodan zelený|Chlorocebus sabaeus
+sav|šimpanz učenlivý|Pan troglodytes
+sav|orangutan bornejský|Pongo pygmaeus
+sav|gorila nížinná|Gorilla gorilla
+sav|člověk rozumný|Homo sapiens
+sav|myš domácí|Mus musculus
+sav|sysel obecný|Spermophilus citellus
+sav|bobr evropský|Castor fiber
+sav|medvěd lední|Ursus maritimus
+sav|tchoř tmavý|Mustela putorius
+sav|lev pustinný|Panthera leo
+sav|tygr džunglový|Panthera tigris
+sav|šakal obecný|Canis aureus
+sav|kojot prériový|Canis latrans
+sav|tuleň obecný|Phoca vitulina
+sav|lachtan hřivnatý|Otaria flavescens
+sav|mrož lední|Odobenus rosmarus
+sav|slon indický|Elephas maximus
+sav|slon africký|Loxodonta africana
+sav|nosorožec dvourohý|Diceros bicornis
+sav|zebra stepní|Equus quagga
+sav|zubr evropský|Bison bonasus
+sav|buvol indický|Bubalus arnee
+sav|velryba grónská|Balaena mysticetus
+sav|delfín obecný|Delphinus delphis
+sav|plejtvák obrovský|Balaenoptera musculus
+sav|kosatka dravá|Orcinus orca
+sav|pásovec devítipásý|Dasypus novemcinctus
+sav|lenochod tříprstý|Bradypus tridactylus
+`;
+
+const ANIMALS = RAW.trim().split('\n').map(line => {
+  const [g, cz, la] = line.split('|').map(s => s.trim());
+  const sp = cz.indexOf(' ');
+  return { id: cz, g, cz, la, first: cz.slice(0, sp), second: cz.slice(sp + 1) };
+});
+const GROUP_BY_ID = Object.fromEntries(GROUPS.map(g => [g.id, g]));
+
+/* ------------------------------------------------------------------ *
+ *  Storage (every access guarded; the app works without it)           *
+ * ------------------------------------------------------------------ */
+const store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); }
+    catch (e) { return fallback; }
+  },
+  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
+  del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
+};
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1' };
+
+let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
+let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
+let SELECTED = store.get(K.sel, GROUPS.map(g => g.id));
+let BAD = new Set(store.get(K.bad, []));
+let SOUND = store.get(K.sound, true);
+let IMAGES = {};                        // id -> [url, ...]
+let IMG_STATE = 'loading';              // loading | ok | failed
+
+const MASTER = 3;                       // box >= MASTER counts as "umím"
+const prog = a => PROGRESS[a.id] || (PROGRESS[a.id] = { b: 0, s: 0, c: 0, w: 0, t: 0 });
+const saveProgress = () => store.set(K.prog, PROGRESS);
+function record(a, correct) {
+  const p = prog(a);
+  p.s++; p.t = Date.now();
+  if (correct) { p.c++; p.b = Math.min(5, p.b + 1); }
+  else { p.w++; p.b = Math.max(0, p.b - 2); }
+  saveProgress();
+}
+
+/* ------------------------------------------------------------------ *
+ *  Photos from Wikipedia (CORS enabled via origin=*), cached locally  *
+ * ------------------------------------------------------------------ */
+async function wikiThumbs(host, titles) {
+  const out = {};
+  for (let i = 0; i < titles.length; i += 50) {
+    const chunk = titles.slice(i, i + 50);
+    const url = `https://${host}/w/api.php?action=query&format=json&formatversion=2&origin=*` +
+      `&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=640&pilimit=50&titles=` +
+      encodeURIComponent(chunk.join('|'));
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const q = (await res.json()).query || {};
+    const final = {};
+    chunk.forEach(t => { final[t] = t; });
+    const follow = list => (list || []).forEach(n => {
+      for (const k in final) if (final[k] === n.from) final[k] = n.to;
+    });
+    follow(q.normalized);
+    follow(q.redirects);
+    const byTitle = {};
+    (q.pages || []).forEach(p => { if (p.thumbnail && p.thumbnail.source) byTitle[p.title] = p.thumbnail.source; });
+    chunk.forEach(t => { if (byTitle[final[t]]) out[t] = byTitle[final[t]]; });
+  }
+  return out;
+}
+
+const fileKey = url => { const parts = url.split('/'); return decodeURIComponent(/px-/.test(parts[parts.length - 1]) ? parts[parts.length - 2] : parts[parts.length - 1]); };
+
+async function loadImages(force) {
+  const cached = store.get(K.imgs, null);
+  const fresh = cached && Date.now() - cached.t < 14 * 864e5 && cached.v === ANIMALS.length;
+  if (cached && fresh && !force) { IMAGES = cached.data; IMG_STATE = 'ok'; return; }
+  try {
+    const [en, cs] = await Promise.all([
+      wikiThumbs('en.wikipedia.org', ANIMALS.map(a => a.la)).catch(() => ({})),
+      wikiThumbs('cs.wikipedia.org', ANIMALS.map(a => a.cz)).catch(() => ({})),
+    ]);
+    const data = {};
+    ANIMALS.forEach(a => {
+      const list = [];
+      [en[a.la], cs[a.cz]].forEach(u => { if (u && !list.some(x => fileKey(x) === fileKey(u))) list.push(u); });
+      if (list.length) data[a.id] = list;
+    });
+    if (Object.keys(data).length === 0) throw new Error('no images');
+    IMAGES = data; IMG_STATE = 'ok';
+    store.set(K.imgs, { t: Date.now(), v: ANIMALS.length, data });
+  } catch (e) {
+    if (cached) { IMAGES = cached.data; IMG_STATE = 'ok'; }
+    else IMG_STATE = 'failed';
+  }
+}
+const imgsOf = a => (IMAGES[a.id] || []).filter(u => !BAD.has(u));
+const hasImg = a => imgsOf(a).length > 0;
+const pickImg = a => { const l = imgsOf(a); return l.length ? l[Math.floor(Math.random() * l.length)] : null; };
+function preload(urls) { urls.forEach(u => { if (u) { const i = new Image(); i.src = u; } }); }
+
+/* ------------------------------------------------------------------ *
+ *  Helpers                                                            *
+ * ------------------------------------------------------------------ */
+const $app = document.getElementById('app');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const sample = arr => arr[Math.floor(Math.random() * arr.length)];
+const uniqBy = (arr, f) => { const seen = new Set(); return arr.filter(x => { const k = f(x); if (seen.has(k)) return false; seen.add(k); return true; }); };
+const norm = s => s.toLowerCase().normalize('NFC').replace(/\s+/g, ' ').trim();
+const strip = s => norm(s).normalize('NFD').replace(/[̀-ͯ]/g, '');
+function lev(a, b) {
+  const m = a.length, n = b.length, d = Array.from({ length: m + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[m][n];
+}
+function checkTyped(input, a) {
+  if (norm(input) === norm(a.cz)) return 'ok';
+  if (strip(input) === strip(a.cz)) return 'accent';
+  if (strip(a.cz).length > 5 && lev(strip(input), strip(a.cz)) <= 1) return 'typo';
+  return 'wrong';
+}
+const pool = () => ANIMALS.filter(a => SELECTED.includes(a.g));
+const imgPool = () => pool().filter(hasImg);
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+function bumpStreak() {
+  const t = today(), y = new Date(Date.now() - 864e5);
+  const yd = `${y.getFullYear()}-${y.getMonth() + 1}-${y.getDate()}`;
+  if (STATS.lastDay !== t) { STATS.streak = STATS.lastDay === yd ? STATS.streak + 1 : 1; STATS.lastDay = t; }
+  STATS.lessons++;
+  store.set(K.stats, STATS);
+}
+function currentStreak() {
+  const y = new Date(Date.now() - 864e5);
+  const yd = `${y.getFullYear()}-${y.getMonth() + 1}-${y.getDate()}`;
+  return (STATS.lastDay === today() || STATS.lastDay === yd) ? STATS.streak : 0;
+}
+
+/* Sound + speech */
+let actx = null;
+function beep(ok) {
+  if (!SOUND) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const now = actx.currentTime;
+    (ok ? [660, 990] : [196, 147]).forEach((f, i) => {
+      const o = actx.createOscillator(), g = actx.createGain(), t0 = now + i * 0.11;
+      o.type = ok ? 'sine' : 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+      o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + 0.22);
+    });
+  } catch (e) { /* no audio */ }
+}
+function say(text) {
+  if (!SOUND || !('speechSynthesis' in window)) return;
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'cs-CZ'; u.rate = 0.9;
+    const v = speechSynthesis.getVoices().find(v => (v.lang || '').toLowerCase().startsWith('cs'));
+    if (v) u.voice = v;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  } catch (e) { /* ignore */ }
+}
+if ('speechSynthesis' in window) { try { speechSynthesis.getVoices(); } catch (e) {} }
+
+function confetti() {
+  const em = ['🎉', '⭐', '🐸', '🦊', '🐟', '🦜', '🐘', '✨'];
+  for (let i = 0; i < 28; i++) {
+    const s = document.createElement('div');
+    s.className = 'confetti'; s.textContent = sample(em);
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.animationDuration = 1.8 + Math.random() * 1.8 + 's';
+    s.style.animationDelay = Math.random() * 0.6 + 's';
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 4500);
+  }
+}
+
+const PRAISE = ['Výborně!', 'Super!', 'Paráda!', 'Skvělé!', 'Přesně tak!', 'Jde ti to!', 'Bezva!'];
+function picHtml(url, a, cls = '') {
+  const g = a ? GROUP_BY_ID[a.g] : null;
+  return `<div class="pic ${cls}">${url
+    ? `<img src="${esc(url)}" alt="" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'fallback',textContent:'${g ? g.icon : '❓'}'}))">`
+    : `<span class="fallback">${g ? g.icon : '❓'}</span>`}</div>`;
+}
+const speakBtn = a => `<button class="speak" data-say="${esc(a.cz)}" title="Přečíst nahlas">🔊</button>`;
+function dots(a) { const b = prog(a).b; return `<div class="dots">${[1, 2, 3, 4, 5].map(i => `<i class="${b >= i ? 'on' : ''}"></i>`).join('')}</div>`; }
+
+/* ------------------------------------------------------------------ *
+ *  Distractors                                                        *
+ * ------------------------------------------------------------------ */
+function distractors(a, n, { needImg = false, hard = false } = {}) {
+  const others = ANIMALS.filter(x => x !== a && (!needImg || hasImg(x)));
+  const sameGenus = shuffle(others.filter(x => x.first === a.first));
+  const sameGroup = shuffle(others.filter(x => x.g === a.g && x.first !== a.first));
+  const rest = shuffle(others.filter(x => x.g !== a.g));
+  const order = hard ? [...sameGenus, ...sameGroup, ...rest] : [...sameGroup.slice(0, 2), ...sameGenus, ...sameGroup.slice(2), ...rest];
+  return uniqBy(order, x => x.id).slice(0, n);
+}
+function epithetOptions(a) {
+  const ending = a.second.slice(-1);
+  const all = uniqBy(ANIMALS, x => x.second).map(x => x.second).filter(s => s !== a.second);
+  const sameGenus = ANIMALS.filter(x => x.first === a.first && x.second !== a.second).map(x => x.second);
+  const sameEnd = shuffle(all.filter(s => s.slice(-1) === ending));
+  const picks = uniqBy([...shuffle(sameGenus), ...sameEnd, ...shuffle(all)], s => s).slice(0, 3);
+  return shuffle([a.second, ...picks]);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Question factory                                                   *
+ * ------------------------------------------------------------------ */
+function makeQuestion(a, level) {
+  let types;
+  if (level <= 0) types = ['pickName', 'pickName', 'pickImage'];
+  else if (level === 1) types = ['pickName', 'pickImage', 'epithet'];
+  else if (level === 2) types = ['epithet', 'pickNameHard', 'type', 'pickImage'];
+  else types = ['type', 'type', 'epithet', 'pickNameHard'];
+  let type = sample(types);
+  const q = { a, type, img: pickImg(a) };
+  if (type === 'pickName' || type === 'pickNameHard') {
+    q.options = shuffle([a, ...distractors(a, 3, { hard: type === 'pickNameHard' })]);
+    q.type = 'pickName';
+  } else if (type === 'pickImage') {
+    const ds = distractors(a, 3, { needImg: true });
+    if (ds.length < 3) return { a, type: 'pickName', img: q.img, options: shuffle([a, ...distractors(a, 3)]) };
+    q.options = shuffle([a, ...ds]).map(x => ({ a: x, img: x === a ? q.img : pickImg(x) }));
+  } else if (type === 'epithet') {
+    q.options = epithetOptions(a);
+  }
+  return q;
+}
+
+/* ------------------------------------------------------------------ *
+ *  App state + router                                                 *
+ * ------------------------------------------------------------------ */
+let S = { screen: 'loading' };
+function go(screen, extra = {}) { S = { screen, ...extra }; render(); window.scrollTo(0, 0); }
+
+function render() {
+  const fn = SCREENS[S.screen];
+  $app.innerHTML = fn();
+  const focus = $app.querySelector('[autofocus]');
+  if (focus) setTimeout(() => focus.focus(), 30);
+}
+
+const SCREENS = {
+  loading: () => `<div class="loading"><div class="spin">🦊</div><h2>Načítám obrázky zvířat…</h2><p class="muted">Poprvé to chvilku trvá.</p></div>`,
+
+  home() {
+    const all = ANIMALS.length;
+    const known = ANIMALS.filter(a => prog(a).b >= MASTER).length;
+    const p = pool();
+    const noImg = ANIMALS.filter(a => !hasImg(a));
+    return `
+    <div class="top">
+      <div class="brand">🦊 Poznávačka</div>
+      <div class="stats"><span title="Dny v řadě">🔥 ${currentStreak()}</span><span title="Body">⭐ ${STATS.xp}</span></div>
+    </div>
+    ${IMG_STATE === 'failed' ? `<div class="warn">Nepodařilo se načíst obrázky z Wikipedie. Zkontroluj internet. <button class="btn ghost" data-act="retry">Zkusit znovu</button></div>` : ''}
+    <div class="hero">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+        <b style="font-size:18px">Umíš ${known} z ${all} zvířat</b>
+        <span class="muted small">${Math.round(known / all * 100)} %</span>
+      </div>
+      <div class="bar"><i style="width:${known / all * 100}%"></i></div>
+    </div>
+
+    <div class="section-title"><span>Co chceš procvičovat?</span>
+      <button class="btn ghost small" data-act="toggleAll">${SELECTED.length === GROUPS.length ? 'Zrušit vše' : 'Vybrat vše'}</button></div>
+    <div class="groups">
+      ${GROUPS.map(g => {
+        const list = ANIMALS.filter(a => a.g === g.id);
+        const k = list.filter(a => prog(a).b >= MASTER).length;
+        return `<button class="group ${SELECTED.includes(g.id) ? 'on' : ''}" data-group="${g.id}">
+          <div class="gname">${g.icon} ${g.name}</div>
+          <div class="gcount">${k} / ${list.length} umím</div>
+          <div class="bar thin"><i style="width:${k / list.length * 100}%;background:${g.color}"></i></div>
+        </button>`;
+      }).join('')}
+    </div>
+
+    <div class="section-title"><span>Hraj</span><span class="small">${p.length} zvířat vybráno</span></div>
+    <div class="modes">
+      <button class="btn primary mode big" data-act="lesson" ${p.length ? '' : 'disabled'}>
+        <span class="mi">🎯</span><span><span class="mt">Lekce</span><br><span class="md">12 otázek, nová zvířata i opakování</span></span></button>
+      <button class="btn blue mode" data-act="cards" ${p.length ? '' : 'disabled'}>
+        <span class="mi">🃏</span><span class="mt">Kartičky</span><span class="md">Obrázek → víš jméno?</span></button>
+      <button class="btn orange mode" data-act="atlas">
+        <span class="mi">📖</span><span class="mt">Atlas</span><span class="md">Prohlédni si všechna zvířata</span></button>
+      <button class="btn purple mode big" data-act="exam" ${p.length ? '' : 'disabled'}>
+        <span class="mi">📝</span><span><span class="mt">Zkouška nanečisto</span><br><span class="md">Napiš celé jméno každého zvířete. Dostaneš známku.</span></span></button>
+    </div>
+
+    <div class="foot">
+      <button class="btn ghost small" data-act="sound">${SOUND ? '🔊 Zvuk zapnutý' : '🔇 Zvuk vypnutý'}</button>
+      <button class="btn ghost small" data-act="reset">Smazat pokrok</button>
+      ${noImg.length && IMG_STATE === 'ok' ? `<div class="muted small" style="margin-top:6px">Bez obrázku (nebudou v otázkách): ${noImg.map(a => esc(a.cz)).join(', ')}</div>` : ''}
+      <div class="credit">Fotky: Wikipedie / Wikimedia Commons</div>
+    </div>`;
+  },
+
+  /* ----- Lesson / exam question ----- */
+  lesson() {
+    const L = S.L, it = L.queue[L.i];
+    const pct = L.done / L.total * 100;
+    let body = '';
+    if (it.type === 'intro') {
+      body = `<span class="badge">Nové zvíře</span>
+        ${picHtml(it.img, it.a, 'pop')}
+        <div class="intro-name">${esc(it.a.cz)} ${speakBtn(it.a)}</div>
+        <div class="intro-sub">${esc(it.a.la)} · ${GROUP_BY_ID[it.a.g].icon} ${GROUP_BY_ID[it.a.g].name}</div>
+        <div class="spacer"></div>
+        <div class="feedback neutral"><button class="btn primary wide" data-act="next" autofocus>Pokračovat</button></div>`;
+    } else {
+      body = questionBody(it, L);
+    }
+    return `<div class="lesson-top"><button class="x" data-act="quit" title="Ukončit">✕</button>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      ${L.exam ? `<b class="small">${L.done}/${L.total}</b>` : ''}</div>
+      ${body}`;
+  },
+
+  lessonEnd() {
+    const L = S.L;
+    const firstTry = L.firstTry, total = L.firstQs;
+    const acc = total ? Math.round(firstTry / total * 100) : 100;
+    let gradeHtml = '';
+    if (L.exam) {
+      const pts = L.points, max = L.total;
+      const pc = pts / max * 100;
+      const grade = pc >= 90 ? 1 : pc >= 75 ? 2 : pc >= 50 ? 3 : pc >= 30 ? 4 : 5;
+      const txt = ['', 'Výborně!', 'Chválitebně', 'Dobře', 'Dostatečně', 'Ještě potrénuj'][grade];
+      gradeHtml = `<div class="muted" style="font-weight:800">Známka</div><div class="grade" style="color:${grade <= 2 ? 'var(--green)' : grade === 3 ? 'var(--orange)' : 'var(--red)'}">${grade}</div>
+        <div style="font-weight:800">${txt} · ${pts % 1 ? pts.toFixed(1) : pts} z ${max} bodů</div>`;
+    }
+    const mistakes = L.mistakes;
+    return `<div class="center">
+      <div class="big-emoji">${acc >= 90 ? '🏆' : acc >= 60 ? '🎉' : '💪'}</div>
+      <h1 style="color:var(--orange)">${L.exam ? 'Zkouška hotová!' : 'Lekce hotová!'}</h1>
+      ${gradeHtml}
+      <div class="results">
+        <div class="res" style="border-color:var(--orange)"><div class="rh" style="background:var(--orange)">Body</div><div class="rv">⭐ ${L.xp}</div></div>
+        <div class="res" style="border-color:var(--green)"><div class="rh" style="background:var(--green)">Přesnost</div><div class="rv">🎯 ${acc} %</div></div>
+        <div class="res" style="border-color:var(--red)"><div class="rh" style="background:var(--red)">Série</div><div class="rv">🔥 ${currentStreak()}</div></div>
+      </div>
+      ${mistakes.length ? `<div class="section-title"><span>Tahle si zopakuj</span></div>
+        <div class="mistakes">${mistakes.map(m => `<div class="mistake">${picHtml(m.img, m.a)}<div class="t"><b>${esc(m.a.cz)}</b>${m.answer ? `<s>${esc(m.answer)}</s>` : ''}</div></div>`).join('')}</div>` : ''}
+      <div style="display:grid;gap:10px;margin-top:20px">
+        ${mistakes.length ? `<button class="btn orange wide" data-act="practiceMistakes">Procvičit chyby</button>` : ''}
+        <button class="btn primary wide" data-act="home" autofocus>Pokračovat</button>
+      </div></div>`;
+  },
+
+  /* ----- Flashcards ----- */
+  cards() {
+    const C = S.C, a = C.queue[C.i];
+    return `<div class="lesson-top"><button class="x" data-act="home" title="Zpět">✕</button>
+      <div class="bar"><i style="width:${C.i / C.queue.length * 100}%;background:var(--blue)"></i></div><b class="small">${C.i + 1}/${C.queue.length}</b></div>
+      <div class="q-title">Víš, jak se jmenuje?</div>
+      <div class="flash" data-act="flip">${picHtml(C.img, a, 'pop')}</div>
+      <div class="reveal">${C.flipped
+        ? `<div class="intro-name" style="margin-top:8px">${esc(a.cz)} ${speakBtn(a)}</div><div class="intro-sub">${esc(a.la)}</div>`
+        : `<span class="muted">Řekni jméno nahlas a pak ťukni na „Ukázat“.</span>`}</div>
+      <div class="spacer"></div>
+      <div class="feedback neutral">${C.flipped
+        ? `<div class="row"><button class="btn red" data-act="cardNo">😕 Nevěděl/a</button><button class="btn primary" data-act="cardYes">😎 Věděl/a</button></div>`
+        : `<button class="btn blue wide" data-act="flip" autofocus>Ukázat</button>`}</div>`;
+  },
+  cardsEnd() {
+    const C = S.C;
+    return `<div class="center"><div class="big-emoji">🃏</div><h1 style="color:var(--blue)">Kartičky hotové!</h1>
+      <p style="font-weight:800;font-size:18px">Věděl/a jsi ${C.yes} z ${C.queue.length}.</p>
+      <div style="display:grid;gap:10px;margin-top:20px">
+        <button class="btn blue wide" data-act="cards">Další kartičky</button>
+        <button class="btn primary wide" data-act="home" autofocus>Hotovo</button></div></div>`;
+  },
+
+  /* ----- Atlas ----- */
+  atlas() {
+    const hide = S.hide;
+    return `<div class="sticky-head"><div class="lesson-top" style="margin-bottom:6px"><button class="x" data-act="home" title="Zpět">✕</button>
+      <h2 style="flex:1">📖 Atlas</h2>
+      <label class="toggle"><input type="checkbox" data-act="hideNames" ${hide ? 'checked' : ''}> Schovat jména</label></div></div>
+      ${GROUPS.map(g => `
+        <div class="section-title" style="color:${g.color}"><span>${g.icon} ${g.name}</span></div>
+        <div class="atlas-grid">${ANIMALS.filter(a => a.g === g.id).map(a => `
+          <button class="btn acard" data-open="${esc(a.id)}">${picHtml(imgsOf(a)[0], a)}
+            <div class="an">${hide ? '<span class="muted">? ? ?</span>' : esc(a.cz)}${dots(a)}</div></button>`).join('')}
+        </div>`).join('')}
+      ${S.open ? atlasModal() : ''}`;
+  },
+};
+
+function atlasModal() {
+  const a = ANIMALS.find(x => x.id === S.open);
+  const list = imgsOf(a);
+  const idx = S.openIdx % Math.max(1, list.length);
+  const url = list[idx];
+  const p = prog(a);
+  return `<div class="modal-bg" data-act="closeModal"><div class="modal" data-stop>
+    ${picHtml(url, a)}
+    <div class="intro-name">${esc(a.cz)} ${speakBtn(a)}</div>
+    <div class="intro-sub">${esc(a.la)} · ${GROUP_BY_ID[a.g].icon} ${GROUP_BY_ID[a.g].name}</div>
+    <p class="center small muted">Viděno ${p.s}×, správně ${p.c}×, špatně ${p.w}×</p>
+    <div class="row" style="margin-top:8px">
+      ${list.length > 1 ? `<button class="btn" data-act="nextImg">🔄 Jiná fotka</button>` : ''}
+      ${url ? `<button class="btn" data-act="badImg" title="Fotka nesedí? Skryj ji.">🚫 Špatná fotka</button>` : ''}
+    </div>
+    <button class="btn primary wide" style="margin-top:10px" data-act="closeModal">Zavřít</button>
+    ${url ? `<div class="credit"><a href="https://${/cs\.wikipedia/.test(url) ? 'cs' : 'en'}.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">Wikipedie</a></div>` : ''}
+  </div></div>`;
+}
+
+function questionBody(it, L) {
+  const a = it.a, st = it.state;   // state: undefined | {ok, pick, typed, verdict}
+  let html = '';
+  if (it.type === 'pickName') {
+    html = `<div class="q-title">Jak se jmenuje toto zvíře?</div>${picHtml(it.img, a)}
+      <div class="options">${it.options.map((o, i) => {
+        let cls = '';
+        if (st) { if (o === a) cls = 'correct'; else if (st.pick === i) cls = 'wrong'; }
+        return `<button class="btn opt ${cls}" data-pick="${i}" ${st ? 'disabled' : ''}>${esc(o.cz)}</button>`;
+      }).join('')}</div>`;
+  } else if (it.type === 'pickImage') {
+    html = `<div class="q-title">Kde je <span style="color:var(--blue)">${esc(a.cz)}</span>? ${speakBtn(a)}</div>
+      <div class="imgopts">${it.options.map((o, i) => {
+        let cls = '';
+        if (st) { if (o.a === a) cls = 'correct'; else if (st.pick === i) cls = 'wrong'; }
+        return `<button class="btn imgopt ${cls}" data-pick="${i}" ${st ? 'disabled' : ''}>${picHtml(o.img, o.a, 'sm')}</button>`;
+      }).join('')}</div>`;
+  } else if (it.type === 'epithet') {
+    html = `<div class="q-title">Doplň celé jméno</div>${picHtml(it.img, a)}
+      <div class="blank">${esc(a.first)} <u>${st ? esc(a.second) : '&nbsp;'}</u></div>
+      <div class="chips">${it.options.map((o, i) => {
+        let cls = '';
+        if (st) { if (o === a.second) cls = 'correct'; else if (st.pick === i) cls = 'wrong'; }
+        return `<button class="btn chip ${cls}" data-pick="${i}" ${st ? 'disabled' : ''}>${esc(o)}</button>`;
+      }).join('')}</div>`;
+  } else if (it.type === 'type') {
+    html = `<div class="q-title">Napiš celé jméno</div>${picHtml(it.img, a)}
+      <form data-form="type" autocomplete="off">
+        <input class="typein ${st && !st.ok ? 'shake' : ''}" name="ans" placeholder="např. kapr obecný" autocapitalize="off" autocorrect="off" spellcheck="false" ${st ? `disabled value="${esc(st.typed)}"` : 'autofocus'}>
+        ${!st ? `${it.hint ? `<p class="muted" style="font-weight:700">Nápověda: začíná na <b>${esc(a.first)}</b></p>` : ''}
+          <div class="row" style="margin-top:12px">
+            ${!it.hint && !L.exam ? `<button type="button" class="btn" data-act="hint">💡 Nápověda</button>` : ''}
+            <button type="button" class="btn" data-act="dunno">Nevím</button>
+            <button type="submit" class="btn primary">Zkontrolovat</button></div>` : ''}
+      </form>`;
+  }
+  let fb = '';
+  if (st) {
+    const nice = st.ok && st.verdict === 'ok';
+    const title = nice ? sample(PRAISE)
+      : st.ok ? 'Skoro!'
+      : 'Správně je:';
+    const msg = nice ? `${esc(a.cz)}`
+      : st.ok ? `${st.verdict === 'accent' ? 'Pozor na háčky a čárky' : 'Malý překlep'}. Píše se: <b>${esc(a.cz)}</b>`
+      : `<b>${esc(a.cz)}</b>`;
+    fb = `<div class="spacer"></div><div class="feedback ${st.ok ? 'ok' : 'bad'}">
+      <h3>${st.ok ? '✅' : '❌'} ${title}</h3><p>${msg} ${speakBtn(a)}</p>
+      <button class="btn primary wide ${st.ok ? '' : 'bad'}" data-act="next" autofocus>Pokračovat</button></div>`;
+  }
+  return html + fb;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Session builders                                                   *
+ * ------------------------------------------------------------------ */
+function startLesson(fromList) {
+  const P = fromList || imgPool();
+  if (!P.length) { alert('Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.'); return; }
+  const N = Math.min(12, Math.max(P.length, 4));
+  let items = [];
+  if (fromList) {
+    shuffle(P).slice(0, N).forEach(a => items.push(makeQuestion(a, Math.min(prog(a).b, 1))));
+    while (items.length < Math.min(8, P.length * 2)) items.push(makeQuestion(sample(P), 2));
+  } else {
+    const unseen = shuffle(P.filter(a => !prog(a).s));
+    const seen = P.filter(a => prog(a).s);
+    const newCount = Math.min(unseen.length, seen.length < 6 ? 4 : 2);
+    const fresh = unseen.slice(0, newCount);
+    // weakest + longest-unseen animals first, with a little randomness
+    const now = Date.now();
+    const review = seen.map(a => {
+      const p = prog(a), ageDays = (now - p.t) / 864e5;
+      return { a, score: p.b * 1.3 - Math.min(ageDays, 7) * 0.3 + Math.random() * 1.5 };
+    }).sort((x, y) => x.score - y.score).map(x => x.a);
+    const reviewCount = Math.max(0, N - newCount * 2);
+    const rev = review.slice(0, reviewCount);
+    rev.forEach(a => items.push(makeQuestion(a, prog(a).b)));
+    items = shuffle(items);
+    // each new animal: intro card, a quick easy question soon after, a harder one later
+    fresh.forEach((a, k) => {
+      const pos = Math.min(items.length, Math.floor(k * items.length / fresh.length) + k * 3);
+      items.splice(pos, 0, { a, type: 'intro', img: pickImg(a) });
+      items.splice(Math.min(items.length, pos + 2), 0, makeQuestion(a, 0));
+      items.splice(Math.min(items.length, pos + 6), 0, makeQuestion(a, 1));
+    });
+    while (items.filter(i => i.type !== 'intro').length < Math.min(N, P.length * 2)) {
+      const a = sample(P); items.push(makeQuestion(a, prog(a).b));
+    }
+  }
+  const L = { queue: items, i: 0, done: 0, total: items.length, questions: 0, firstQs: 0, firstTry: 0, xp: 0, mistakes: [], seenWrong: new Set(), exam: false };
+  preload(items.flatMap(it => [it.img, ...(it.type === 'pickImage' ? it.options.map(o => o.img) : [])]));
+  go('lesson', { L });
+  maybeSpeakIntro();
+}
+
+function startExam() {
+  const P = shuffle(imgPool());
+  if (!P.length) { alert('Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.'); return; }
+  const items = P.map(a => ({ a, type: 'type', img: pickImg(a) }));
+  const L = { queue: items, i: 0, done: 0, total: items.length, questions: 0, firstQs: 0, firstTry: 0, xp: 0, mistakes: [], seenWrong: new Set(), exam: true, points: 0 };
+  preload(items.slice(0, 10).map(i => i.img));
+  go('lesson', { L });
+}
+
+function startCards() {
+  const P = imgPool();
+  if (!P.length) { alert('Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.'); return; }
+  const queue = P.map(a => ({ a, s: prog(a).b + Math.random() * 2 })).sort((x, y) => x.s - y.s).slice(0, 15).map(x => x.a);
+  const C = { queue: shuffle(queue), i: 0, flipped: false, yes: 0 };
+  C.img = pickImg(C.queue[0]);
+  preload(C.queue.map(a => imgsOf(a)[0]));
+  go('cards', { C });
+}
+
+function maybeSpeakIntro() {
+  const it = S.L && S.L.queue[S.L.i];
+  if (it && it.type === 'intro') setTimeout(() => say(it.a.cz), 250);
+}
+
+function answer(it, ok, extra) {
+  const L = S.L;
+  it.state = { ok, ...extra };
+  L.questions++;
+  const firstTime = !it.retry;
+  if (firstTime) L.firstQs++;
+  if (ok && firstTime) L.firstTry++;
+  if (L.exam) {
+    L.points += ok ? (extra.verdict === 'ok' ? 1 : 0.5) : 0;
+    if (!ok || extra.verdict !== 'ok') L.mistakes.push({ a: it.a, img: it.img, answer: extra.typed || '—' });
+  } else {
+    if (!ok && !L.seenWrong.has(it.a.id)) { L.seenWrong.add(it.a.id); L.mistakes.push({ a: it.a, img: it.img }); }
+    if (!ok) {
+      // Duolingo style: the question comes back later in the lesson
+      const again = makeQuestion(it.a, Math.max(0, prog(it.a).b - 1));
+      again.retry = true;
+      L.queue.push(again); L.total++;
+    }
+  }
+  if (ok) L.xp += firstTime ? 2 : 1;
+  record(it.a, ok);
+  beep(ok);
+  if (ok) say(it.a.cz);
+  render();
+}
+
+function next() {
+  const L = S.L;
+  L.done++; L.i++;
+  if (L.i >= L.queue.length) {
+    L.xp += L.exam ? 5 : 10;
+    STATS.xp += L.xp;
+    bumpStreak();
+    go('lessonEnd', { L });
+    confetti(); beep(true);
+    return;
+  }
+  render();
+  window.scrollTo(0, 0);
+  maybeSpeakIntro();
+}
+
+/* ------------------------------------------------------------------ *
+ *  Events                                                             *
+ * ------------------------------------------------------------------ */
+$app.addEventListener('click', e => {
+  const sayBtn = e.target.closest('[data-say]');
+  if (sayBtn) { e.stopPropagation(); say(sayBtn.dataset.say); return; }
+
+  const g = e.target.closest('[data-group]');
+  if (g) {
+    const id = g.dataset.group;
+    SELECTED = SELECTED.includes(id) ? SELECTED.filter(x => x !== id) : [...SELECTED, id];
+    store.set(K.sel, SELECTED); render(); return;
+  }
+
+  const pick = e.target.closest('[data-pick]');
+  if (pick && S.screen === 'lesson') {
+    const it = S.L.queue[S.L.i];
+    if (it.state) return;
+    const i = +pick.dataset.pick;
+    let ok;
+    if (it.type === 'pickName') ok = it.options[i] === it.a;
+    else if (it.type === 'pickImage') ok = it.options[i].a === it.a;
+    else if (it.type === 'epithet') ok = it.options[i] === it.a.second;
+    answer(it, ok, { pick: i, verdict: 'ok' });
+    return;
+  }
+
+  const open = e.target.closest('[data-open]');
+  if (open) { S.open = open.dataset.open; S.openIdx = 0; render(); say(S.open); return; }
+
+  const actEl = e.target.closest('[data-act]');
+  if (!actEl) return;
+  const act = actEl.dataset.act;
+  if (act === 'closeModal' && e.target.closest('[data-stop]') && actEl.classList.contains('modal-bg')) return;
+  switch (act) {
+    case 'lesson': startLesson(); break;
+    case 'exam': startExam(); break;
+    case 'cards': startCards(); break;
+    case 'atlas': go('atlas', { hide: store.get(K.hide, false) }); break;
+    case 'home': go('home'); break;
+    case 'retry': go('loading'); loadImages(true).then(() => go('home')); break;
+    case 'toggleAll': SELECTED = SELECTED.length === GROUPS.length ? [] : GROUPS.map(g => g.id); store.set(K.sel, SELECTED); render(); break;
+    case 'sound': SOUND = !SOUND; store.set(K.sound, SOUND); render(); break;
+    case 'reset':
+      if (confirm('Opravdu smazat celý pokrok? Tohle nejde vrátit.')) {
+        PROGRESS = {}; STATS = { xp: 0, streak: 0, lastDay: null, lessons: 0 };
+        store.del(K.prog); store.del(K.stats); render();
+      }
+      break;
+    case 'quit':
+      if (S.L.done === 0 || confirm('Opravdu chceš skončit? Pokrok v této lekci se neuloží do série.')) go('home');
+      break;
+    case 'next': next(); break;
+    case 'hint': S.L.queue[S.L.i].hint = true; render(); break;
+    case 'dunno': { const it = S.L.queue[S.L.i]; answer(it, false, { typed: '', verdict: 'wrong' }); break; }
+    case 'practiceMistakes': startLesson(S.L.mistakes.map(m => m.a)); break;
+    case 'flip': if (!S.C.flipped) { S.C.flipped = true; render(); say(S.C.queue[S.C.i].cz); } break;
+    case 'cardYes': case 'cardNo': {
+      const C = S.C, ok = act === 'cardYes';
+      record(C.queue[C.i], ok); if (ok) { C.yes++; STATS.xp += 1; store.set(K.stats, STATS); }
+      C.i++; C.flipped = false;
+      if (C.i >= C.queue.length) { go('cardsEnd', { C }); confetti(); }
+      else { C.img = pickImg(C.queue[C.i]); render(); }
+      break;
+    }
+    case 'hideNames': S.hide = actEl.checked; store.set(K.hide, S.hide); { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
+    case 'closeModal': S.open = null; { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
+    case 'nextImg': S.openIdx++; { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
+    case 'badImg': {
+      const a = ANIMALS.find(x => x.id === S.open);
+      const list = imgsOf(a); const url = list[S.openIdx % list.length];
+      if (url && confirm('Skrýt tuto fotku? (Např. když ukazuje něco jiného než zvíře.)')) {
+        BAD.add(url); store.set(K.bad, [...BAD]); S.openIdx = 0;
+        const y = window.scrollY; render(); window.scrollTo(0, y);
+      }
+      break;
+    }
+  }
+});
+
+$app.addEventListener('submit', e => {
+  e.preventDefault();
+  if (S.screen !== 'lesson') return;
+  const it = S.L.queue[S.L.i];
+  if (it.state || it.type !== 'type') return;
+  const typed = e.target.ans.value;
+  if (!typed.trim()) { e.target.ans.focus(); return; }
+  const verdict = checkTyped(typed, it.a);
+  answer(it, verdict !== 'wrong', { typed, verdict });
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (S.screen === 'lesson') {
+    const it = S.L.queue[S.L.i];
+    if (it.type === 'intro' || it.state) { e.preventDefault(); next(); }
+  } else if (S.screen === 'cards' && !S.C.flipped) { e.preventDefault(); S.C.flipped = true; render(); }
+});
+
+/* ------------------------------------------------------------------ */
+render();
+loadImages(false).then(() => go('home'));
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "Poznávačka zvířat",
+  "short_name": "Zvířata",
+  "description": "Uč se poznávat obratlovce podle obrázků",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#58cc02",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2358cc02'/><text x='50' y='68' text-anchor='middle' font-size='56'>🦊</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
