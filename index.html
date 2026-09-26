@@ -621,6 +621,7 @@ const SCREENS = {
     </div>
 
     <div class="foot">
+      <button class="btn blue wide" data-act="share" style="margin-bottom:10px">📤 Poslat kamarádům</button>
       <button class="btn ghost small" data-act="sound">${SOUND ? '🔊 Zvuk zapnutý' : '🔇 Zvuk vypnutý'}</button>
       <button class="btn ghost small" data-act="reset">Smazat pokrok</button>
       ${noImg.length && IMG_STATE === 'ok' ? `<div class="muted small" style="margin-top:6px">Bez obrázku (nebudou v otázkách): ${noImg.map(a => esc(a.cz)).join(', ')}</div>` : ''}
@@ -901,6 +902,16 @@ function next() {
   maybeSpeakIntro();
 }
 
+async function shareApp() {
+  const url = location.href.split('#')[0].split('?')[0];
+  const data = { title: 'Poznávačka zvířat', text: 'Uč se poznávat zvířata na test 🦊', url };
+  try {
+    if (navigator.share) { await navigator.share(data); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); alert('Odkaz zkopírován, pošli ho kamarádům:\n' + url); }
+  catch (e) { prompt('Zkopíruj odkaz a pošli ho kamarádům:', url); }
+}
+
 /* ------------------------------------------------------------------ *
  *  Events                                                             *
  * ------------------------------------------------------------------ */
@@ -943,6 +954,7 @@ $app.addEventListener('click', e => {
     case 'home': go('home'); break;
     case 'retry': go('loading'); loadImages(true).then(() => go('home')); break;
     case 'toggleAll': SELECTED = SELECTED.length === GROUPS.length ? [] : GROUPS.map(g => g.id); store.set(K.sel, SELECTED); render(); break;
+    case 'share': shareApp(); break;
     case 'sound': SOUND = !SOUND; store.set(K.sound, SOUND); render(); break;
     case 'reset':
       if (confirm('Opravdu smazat celý pokrok? Tohle nejde vrátit.')) {
