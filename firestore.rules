@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// Leaderboard for Poznávačka zvířat.
+// Anyone can read the board; each (anonymously signed-in) player can only
+// write their own entries, with sane values.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isMe(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function validName(d) {
+      return d.name is string && d.name.size() >= 2 && d.name.size() <= 16;
+    }
+
+    // All-time: animals known + total points
+    match /players/{uid} {
+      allow read: if true;
+      allow delete: if isMe(uid);
+      allow create, update: if isMe(uid)
+        && request.resource.data.keys().hasOnly(['name', 'known', 'xp', 'updated'])
+        && validName(request.resource.data)
+        && request.resource.data.known is int
+        && request.resource.data.known >= 0 && request.resource.data.known <= 147
+        && request.resource.data.xp is int
+        && request.resource.data.xp >= 0 && request.resource.data.xp <= 1000000
+        && request.resource.data.updated is timestamp;
+    }
+
+    // Weekly: points earned this ISO week (e.g. weeks/2026-W39/players/{uid})
+    match /weeks/{week}/players/{uid} {
+      allow read: if true;
+      allow delete: if isMe(uid);
+      allow create, update: if isMe(uid)
+        && week.size() <= 8
+        && request.resource.data.keys().hasOnly(['name', 'xp', 'updated'])
+        && validName(request.resource.data)
+        && request.resource.data.xp is int
+        && request.resource.data.xp >= 0 && request.resource.data.xp <= 5000
+        && request.resource.data.updated is timestamp;
+    }
+  }
+}

@@ -39,6 +39,7 @@
   .btn.blue { background: var(--blue); border-color: var(--blue-d); color: #fff; }
   .btn.orange { background: var(--orange); border-color: var(--orange-d); color: #fff; }
   .btn.purple { background: var(--purple); border-color: var(--purple-d); color: #fff; }
+  .btn.gold { background: #ffc800; border-color: #e0a800; color: #6b4a00; }
   .btn.red { background: var(--red); border-color: var(--red-d); color: #fff; }
   .btn.ghost { border-color: transparent; background: transparent; color: var(--blue); }
   .btn.ghost:active { transform: none; }
@@ -155,6 +156,15 @@
   @keyframes pop { 0% { transform: scale(.96); opacity: .4; } 100% { transform: scale(1); opacity: 1; } }
   .confetti { position: fixed; top: -20px; font-size: 26px; pointer-events: none; z-index: 100; animation: fall linear forwards; }
   @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .tab { padding: 10px; font-weight: 800; }
+  .tab.on { border-color: var(--blue); background: #ddf4ff; color: var(--blue-d); }
+  .lb { display: grid; gap: 8px; }
+  .lb-row { display: flex; align-items: center; gap: 12px; border: 2px solid var(--line); border-radius: 14px; padding: 10px 14px; font-weight: 800; }
+  .lb-row.me { border-color: var(--blue); background: #ddf4ff; }
+  .lb-rank { width: 34px; text-align: center; font-size: 18px; color: var(--muted); }
+  .lb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-val { color: var(--orange-d); }
   .warn { background: #fff4e0; border: 2px solid #ffd79a; color: #8a5a00; border-radius: 14px; padding: 10px 12px; font-weight: 700; font-size: 14px; margin-bottom: 12px; }
   .credit { font-size: 11px; color: #aaa; margin-top: 6px; text-align: right; }
   .credit a { color: #aaa; }
@@ -348,7 +358,7 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1' };
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1' };
 
 let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
 let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
@@ -654,6 +664,8 @@ const SCREENS = {
         <span class="mi">📖</span><span class="mt">Atlas</span><span class="md">Prohlédni si všechna zvířata</span></button>
       <button class="btn purple mode big" data-act="exam" ${p.length ? '' : 'disabled'}>
         <span class="mi">📝</span><span><span class="mt">Zkouška nanečisto</span><br><span class="md">Napiš celé jméno každého zvířete. Dostaneš známku.</span></span></button>
+      <button class="btn gold mode big" data-act="board">
+        <span class="mi">🏆</span><span><span class="mt">Žebříček</span><br><span class="md">${PLAYER ? `Jsi tam jako ${esc(PLAYER.name)}` : 'Soutěž s kamarády'}</span></span></button>
     </div>
 
     <div class="foot">
@@ -714,6 +726,7 @@ const SCREENS = {
       <div style="display:grid;gap:10px;margin-top:20px">
         ${mistakes.length ? `<button class="btn orange wide" data-act="practiceMistakes">Procvičit chyby</button>` : ''}
         <button class="btn primary wide" data-act="home" autofocus>Pokračovat</button>
+        <button class="btn ghost wide" data-act="board">🏆 ${PLAYER ? 'Jak jsem na tom v žebříčku?' : 'Soutěž s kamarády v žebříčku'}</button>
       </div></div>`;
   },
 
@@ -929,7 +942,7 @@ function next() {
   L.done++; L.i++;
   if (L.i >= L.queue.length) {
     L.xp += L.exam ? 5 : 10;
-    STATS.xp += L.xp;
+    addXp(L.xp);
     bumpStreak();
     go('lessonEnd', { L });
     confetti(); beep(true);
@@ -948,6 +961,161 @@ async function shareApp() {
   } catch (e) { if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(url); alert('Odkaz zkopírován, pošli ho kamarádům:\n' + url); }
   catch (e) { prompt('Zkopíruj odkaz a pošli ho kamarádům:', url); }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Leaderboard: Firebase (anonymous sign-in + Firestore) over plain    *
+ *  REST, no SDK. Each player writes only their own documents (enforced  *
+ *  by firestore.rules); anyone can read the board.                      *
+ * ------------------------------------------------------------------ */
+const FB = { apiKey: 'AIzaSyCf2xGCpl1vmyYA0j9QVdZhL6y2nfKETgc', projectId: 'mia-animals' };
+const FS = `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents`;
+const WEEK_CAP = 5000;
+let PLAYER = store.get(K.player, null);   // { name } once joined
+
+function isoWeek(d = new Date()) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y = t.getUTCFullYear();
+  const w = Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7);
+  return `${y}-W${String(w).padStart(2, '0')}`;
+}
+function weekXp() { return STATS.wk === isoWeek() ? (STATS.wxp || 0) : 0; }
+function addXp(n) {
+  const wk = isoWeek();
+  if (STATS.wk !== wk) { STATS.wk = wk; STATS.wxp = 0; }
+  STATS.xp += n; STATS.wxp = (STATS.wxp || 0) + n;
+  store.set(K.stats, STATS);
+  scheduleSync();
+}
+const knownCount = () => ANIMALS.filter(a => prog(a).b >= MASTER).length;
+
+async function fbToken() {
+  let a = store.get(K.auth, null);
+  if (a && a.exp > Date.now() + 60e3) return a;
+  let r, j;
+  if (a && a.refresh) {
+    r = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FB.apiKey}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(a.refresh),
+    });
+    if (r.ok) {
+      j = await r.json();
+      a = { uid: j.user_id, id: j.id_token, refresh: j.refresh_token, exp: Date.now() + (+j.expires_in) * 1000 };
+      store.set(K.auth, a); return a;
+    }
+  }
+  r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FB.apiKey}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnSecureToken: true }),
+  });
+  if (!r.ok) throw new Error('auth ' + r.status);
+  j = await r.json();
+  a = { uid: j.localId, id: j.idToken, refresh: j.refreshToken, exp: Date.now() + (+j.expiresIn) * 1000 };
+  store.set(K.auth, a); return a;
+}
+const fsVal = v => typeof v === 'string' ? { stringValue: v } : Number.isInteger(v) ? { integerValue: String(v) } : { timestampValue: v.toISOString() };
+const fsDoc = obj => ({ fields: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, fsVal(v)])) });
+const fsRead = f => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, v.stringValue ?? (v.integerValue != null ? +v.integerValue : v.timestampValue)]));
+async function fsCall(method, path, body) {
+  const a = await fbToken();
+  const r = await fetch(path.startsWith(':') ? FS + path : `${FS}/${path}`, {
+    method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + a.id },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) throw new Error(`firestore ${r.status}`);
+  return r.status === 204 ? null : r.json();
+}
+
+let syncTimer = null;
+function scheduleSync() { if (!PLAYER) return; clearTimeout(syncTimer); syncTimer = setTimeout(() => syncPlayer().catch(() => {}), 1500); }
+async function syncPlayer() {
+  if (!PLAYER) return;
+  const a = await fbToken();
+  const now = new Date();
+  await Promise.all([
+    fsCall('PATCH', `players/${a.uid}`, fsDoc({ name: PLAYER.name, known: knownCount(), xp: Math.min(STATS.xp, 1e6), updated: now })),
+    fsCall('PATCH', `weeks/${isoWeek()}/players/${a.uid}`, fsDoc({ name: PLAYER.name, xp: Math.min(weekXp(), WEEK_CAP), updated: now })),
+  ]);
+}
+async function fetchBoard(tab) {
+  const [parent, field] = tab === 'week' ? [`weeks/${isoWeek()}`, 'xp'] : ['', 'known'];
+  const rows = await fsCall('POST', `${parent}:runQuery`, {
+    structuredQuery: { from: [{ collectionId: 'players' }], orderBy: [{ field: { fieldPath: field }, direction: 'DESCENDING' }], limit: 100 },
+  });
+  return (rows || []).filter(r => r.document).map(r => ({ uid: r.document.name.split('/').pop(), ...fsRead(r.document.fields) }))
+    .sort((x, y) => (y[field] - x[field]) || ((y.xp || 0) - (x.xp || 0)));
+}
+async function loadBoard() {
+  S.B.loading = true; S.B.error = null; render();
+  try {
+    if (PLAYER) await syncPlayer();
+    S.B.rows = await fetchBoard(S.B.tab);
+    S.B.me = (store.get(K.auth, null) || {}).uid;
+  } catch (e) { S.B.error = String(e.message || e); }
+  S.B.loading = false;
+  if (S.screen === 'board') render();
+}
+const cleanName = s => s.replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
+
+SCREENS.board = function () {
+  const B = S.B;
+  const head = `<div class="lesson-top"><button class="x" data-act="home" title="Zpět">✕</button><h2 style="flex:1">🏆 Žebříček</h2></div>`;
+  if (!PLAYER || B.rename) {
+    return head + `<div class="hero center">
+      <div class="big-emoji" style="margin-top:4px">🏆</div>
+      <h2>${B.rename ? 'Nová přezdívka' : 'Soutěž s kamarády'}</h2>
+      <p class="muted" style="font-weight:700">${B.rename ? '' : 'Vyber si přezdívku. Ostatní uvidí jen ji, tvoje body za týden a kolik zvířat umíš.'}</p>
+      <form data-form="nick" autocomplete="off">
+        <input class="typein" name="nick" maxlength="16" placeholder="Přezdívka (2–16 znaků)" value="${esc(PLAYER ? PLAYER.name : '')}" autofocus>
+        <button class="btn primary wide" style="margin-top:12px" type="submit">${B.rename ? 'Uložit' : 'Připojit se'}</button>
+      </form>
+      ${B.error ? `<p style="color:var(--bad-ink);font-weight:700">Nepovedlo se: ${esc(B.error)}</p>` : ''}
+      ${B.rename ? `<button class="btn ghost" data-act="cancelRename">Zrušit</button>` : ''}
+    </div>`;
+  }
+  const field = B.tab === 'week' ? 'xp' : 'known';
+  const unit = B.tab === 'week' ? '⭐' : '🧠';
+  const rows = B.rows || [];
+  const medal = i => ['🥇', '🥈', '🥉'][i] || (i + 1);
+  return head + `
+    <div class="tabs">
+      <button class="btn tab ${B.tab === 'week' ? 'on' : ''}" data-act="tabWeek">Tento týden</button>
+      <button class="btn tab ${B.tab === 'all' ? 'on' : ''}" data-act="tabAll">Celkem</button>
+    </div>
+    <p class="muted small center" style="margin:-4px 0 12px;font-weight:700">${B.tab === 'week' ? 'Body získané od pondělí' : 'Kolik zvířat umíš (ze 147)'}</p>
+    ${B.loading ? `<div class="center muted" style="padding:30px">Načítám…</div>`
+      : B.error ? `<div class="warn">Žebříček se nepodařilo načíst. Zkontroluj internet. <button class="btn ghost" data-act="board">Zkusit znovu</button></div>`
+      : rows.length ? `<div class="lb">${rows.map((r, i) => `<div class="lb-row ${r.uid === B.me ? 'me' : ''}">
+          <span class="lb-rank">${medal(i)}</span><span class="lb-name">${esc(r.name)}${r.uid === B.me ? ' (ty)' : ''}</span>
+          <span class="lb-val">${unit} ${r[field] || 0}</span></div>`).join('')}</div>`
+      : `<div class="center muted" style="padding:30px;font-weight:700">Zatím tu nikdo není. Buď první!</div>`}
+    <div class="foot">
+      <button class="btn ghost small" data-act="rename">✏️ Změnit přezdívku</button>
+      <button class="btn ghost small" data-act="leaveBoard">Odejít ze žebříčku</button>
+    </div>`;
+};
+
+async function joinBoard(name) {
+  S.B.error = null;
+  try {
+    PLAYER = { name };
+    await syncPlayer();
+    store.set(K.player, PLAYER);
+    S.B.rename = false;
+    loadBoard();
+  } catch (e) {
+    PLAYER = store.get(K.player, null);
+    S.B.error = String(e.message || e); render();
+  }
+}
+async function leaveBoard() {
+  if (!confirm('Opravdu odejít ze žebříčku? Tvoje jméno a body z něj zmizí.')) return;
+  try {
+    const a = await fbToken();
+    await Promise.all([fsCall('DELETE', `players/${a.uid}`), fsCall('DELETE', `weeks/${isoWeek()}/players/${a.uid}`)]);
+    PLAYER = null; store.del(K.player); go('home');
+  } catch (e) { alert('Nepovedlo se, zkus to znovu.'); }
 }
 
 /* ------------------------------------------------------------------ *
@@ -993,11 +1161,17 @@ $app.addEventListener('click', e => {
     case 'retry': go('loading'); loadImages(true).then(() => go('home')); break;
     case 'toggleAll': SELECTED = SELECTED.length === GROUPS.length ? [] : GROUPS.map(g => g.id); store.set(K.sel, SELECTED); render(); break;
     case 'share': shareApp(); break;
+    case 'board': go('board', { B: { tab: 'week', rows: null } }); if (PLAYER) loadBoard(); break;
+    case 'tabWeek': S.B.tab = 'week'; loadBoard(); break;
+    case 'tabAll': S.B.tab = 'all'; loadBoard(); break;
+    case 'rename': S.B.rename = true; render(); break;
+    case 'cancelRename': S.B.rename = false; render(); break;
+    case 'leaveBoard': leaveBoard(); break;
     case 'sound': SOUND = !SOUND; store.set(K.sound, SOUND); render(); break;
     case 'reset':
       if (confirm('Opravdu smazat celý pokrok? Tohle nejde vrátit.')) {
         PROGRESS = {}; STATS = { xp: 0, streak: 0, lastDay: null, lessons: 0 };
-        store.del(K.prog); store.del(K.stats); render();
+        store.del(K.prog); store.del(K.stats); scheduleSync(); render();
       }
       break;
     case 'quit':
@@ -1010,7 +1184,7 @@ $app.addEventListener('click', e => {
     case 'flip': if (!S.C.flipped) { S.C.flipped = true; render(); say(S.C.queue[S.C.i].cz); } break;
     case 'cardYes': case 'cardNo': {
       const C = S.C, ok = act === 'cardYes';
-      record(C.queue[C.i], ok); if (ok) { C.yes++; STATS.xp += 1; store.set(K.stats, STATS); }
+      record(C.queue[C.i], ok); if (ok) { C.yes++; addXp(1); }
       C.i++; C.flipped = false;
       if (C.i >= C.queue.length) { go('cardsEnd', { C }); confetti(); }
       else { C.img = pickImg(C.queue[C.i]); render(); }
@@ -1034,6 +1208,11 @@ $app.addEventListener('click', e => {
 
 $app.addEventListener('submit', e => {
   e.preventDefault();
+  if (S.screen === 'board') {
+    const name = cleanName(e.target.nick.value);
+    if (name.length < 2) { e.target.nick.focus(); return; }
+    joinBoard(name); return;
+  }
   if (S.screen !== 'lesson') return;
   const it = S.L.queue[S.L.i];
   if (it.state || it.type !== 'type') return;
