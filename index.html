@@ -6,6 +6,9 @@
 <title>Poznávačka zvířat</title>
 <meta name="theme-color" content="#58cc02">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Zvířata">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/smartcrop@2.0.5/smartcrop.js" async onload="document.querySelectorAll('.pic img').forEach(focusImg)"></script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦊</text></svg>">
@@ -361,7 +364,7 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1' };
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1' };
 
 let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
 let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
@@ -1285,6 +1288,93 @@ SCREENS.duel = function () {
 };
 
 /* ------------------------------------------------------------------ *
+ *  First-run welcome: install to home screen (so progress persists),  *
+ *  then pick a nickname. On iPhone the home-screen app has its own    *
+ *  storage, so the nickname is chosen inside the installed app.       *
+ * ------------------------------------------------------------------ */
+const UA = navigator.userAgent;
+const isIOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/i.test(UA);
+const inAppBrowser = /Instagram|FBAN|FBAV|Messenger|Snapchat|TikTok|musical_ly|Line\//i.test(UA);
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; if (S.screen === 'onboard') render(); });
+window.addEventListener('appinstalled', () => { installPrompt = null; if (S.screen === 'onboard' && S.O.steps[S.O.i] === 'install') onboardNext(); });
+
+function startOnboarding(after) {
+  const steps = ['welcome'];
+  if (!isStandalone() && (isIOS || isAndroid)) steps.push('install');
+  if (!PLAYER) steps.push('nick');
+  go('onboard', { O: { steps, i: 0, after } });
+}
+function onboardNext() {
+  const O = S.O;
+  if (O.i + 1 < O.steps.length) { O.i++; O.error = null; render(); window.scrollTo(0, 0); return; }
+  store.set(K.onboarded, true);
+  if (O.after) openDuel(O.after); else go('home');
+}
+async function onboardNick(name) {
+  S.O.saving = true; S.O.error = null; render();
+  try {
+    PLAYER = { name };
+    await syncPlayer();
+    store.set(K.player, PLAYER);
+    S.O.saving = false;
+    onboardNext();
+  } catch (e) {
+    PLAYER = null;
+    S.O.saving = false; S.O.error = 'Nepovedlo se připojit. Zkontroluj internet, nebo to přeskoč a nastav později v Žebříčku.'; render();
+  }
+}
+
+SCREENS.onboard = function () {
+  const O = S.O, step = O.steps[O.i];
+  const dots = `<div style="display:flex;gap:6px;justify-content:center;margin:4px 0 18px">${O.steps.map((_, i) =>
+    `<i style="width:${i === O.i ? 22 : 8}px;height:8px;border-radius:4px;background:${i <= O.i ? 'var(--green)' : 'var(--line)'}"></i>`).join('')}</div>`;
+  let body = '';
+  if (step === 'welcome') {
+    body = `<div class="big-emoji">🦊</div>
+      <h1>Ahoj!</h1>
+      <p style="font-weight:700;font-size:17px">Tady se naučíš poznávat <b>všech ${ANIMALS.length} obratlovců</b> z poznávačky podle fotek i s celými jmény.</p>
+      <div class="lb" style="text-align:left;margin:18px 0">
+        <div class="lb-row"><span style="font-size:24px">🎯</span><span>Krátké lekce jako v Duolingu</span></div>
+        <div class="lb-row"><span style="font-size:24px">📝</span><span>Zkouška nanečisto se známkou</span></div>
+        <div class="lb-row"><span style="font-size:24px">🏆</span><span>Žebříček a souboje s kamarády</span></div>
+      </div>
+      <button class="btn primary wide" data-act="onbNext" autofocus>Začít</button>`;
+  } else if (step === 'install') {
+    const ios = isIOS;
+    body = `<div class="big-emoji">📲</div>
+      <h1>Přidej si appku na plochu</h1>
+      <p style="font-weight:700">Jen tak se ti <b>pokrok spolehlivě uloží</b>. V prohlížeči ho ${ios ? 'iPhone po týdnu může smazat' : 'můžeš snadno ztratit'}.</p>
+      ${inAppBrowser ? `<div class="warn">Máš odkaz otevřený v aplikaci (Instagram, Messenger…). Nejdřív ho otevři v ${ios ? 'Safari' : 'Chromu'}: ťukni na ⋯ a „Otevřít v prohlížeči“.</div>` : ''}
+      ${!ios && installPrompt ? `<button class="btn primary wide" data-act="onbInstall" style="margin:10px 0">📲 Přidat na plochu</button>` : `
+      <div class="lb" style="text-align:left;margin:16px 0">
+        ${ios ? `
+        <div class="lb-row"><span class="lb-rank">1</span><span>Dole v Safari ťukni na <b>Sdílet</b> <span style="font-size:20px">⬆️</span><br><span class="vs">(v novějším iOS nejdřív na ⋯)</span></span></div>
+        <div class="lb-row"><span class="lb-rank">2</span><span>Vyber <b>Přidat na plochu</b> <span style="font-size:20px">➕</span></span></div>
+        <div class="lb-row"><span class="lb-rank">3</span><span>Ťukni na <b>Přidat</b></span></div>
+        <div class="lb-row"><span class="lb-rank">4</span><span>Otevři appku <b>🦊 Zvířata</b> z plochy a pokračuj tam</span></div>` : `
+        <div class="lb-row"><span class="lb-rank">1</span><span>V Chromu ťukni vpravo nahoře na <b>⋮</b></span></div>
+        <div class="lb-row"><span class="lb-rank">2</span><span>Vyber <b>Přidat na plochu</b> nebo <b>Nainstalovat aplikaci</b></span></div>
+        <div class="lb-row"><span class="lb-rank">3</span><span>Otevři appku <b>🦊 Zvířata</b> z plochy</span></div>`}
+      </div>`}
+      <button class="btn ghost wide" data-act="onbNext">${ios ? 'Pokračovat v prohlížeči' : 'Teď ne'}</button>`;
+  } else if (step === 'nick') {
+    body = `<div class="big-emoji">🏆</div>
+      <h1>Jak ti máme říkat?</h1>
+      <p class="muted" style="font-weight:700">Přezdívku uvidí kamarádi v žebříčku a v soubojích. Nic dalšího o tobě neukládáme.</p>
+      <form data-form="onbNick" autocomplete="off">
+        <input class="typein" name="nick" maxlength="16" placeholder="Přezdívka (2–16 znaků)" autofocus ${O.saving ? 'disabled' : ''}>
+        <button class="btn primary wide" style="margin-top:12px" type="submit" ${O.saving ? 'disabled' : ''}>${O.saving ? 'Ukládám…' : 'Hotovo'}</button>
+      </form>
+      ${O.error ? `<p style="color:var(--bad-ink);font-weight:700">${esc(O.error)}</p>` : ''}
+      <button class="btn ghost wide" data-act="onbNext">Přeskočit</button>`;
+  }
+  return `<div class="center" style="margin:auto 0;padding:10px 0">${dots}${body}</div>`;
+};
+
+/* ------------------------------------------------------------------ *
  *  Events                                                             *
  * ------------------------------------------------------------------ */
 $app.addEventListener('click', e => {
@@ -1327,6 +1417,10 @@ $app.addEventListener('click', e => {
     case 'retry': go('loading'); loadImages(true).then(() => go('home')); break;
     case 'toggleAll': SELECTED = SELECTED.length === GROUPS.length ? [] : GROUPS.map(g => g.id); store.set(K.sel, SELECTED); render(); break;
     case 'share': shareApp(); break;
+    case 'onbNext': onboardNext(); break;
+    case 'onbInstall':
+      if (installPrompt) { installPrompt.prompt(); installPrompt.userChoice.then(c => { installPrompt = null; if (c.outcome === 'accepted') onboardNext(); else render(); }).catch(() => {}); }
+      break;
     case 'duels': openDuels(); break;
     case 'newDuel': newDuel(); break;
     case 'playDuel': playDuel(); break;
@@ -1379,6 +1473,11 @@ $app.addEventListener('click', e => {
 
 $app.addEventListener('submit', e => {
   e.preventDefault();
+  if (S.screen === 'onboard') {
+    const name = cleanName(e.target.nick.value);
+    if (name.length < 2) { e.target.nick.focus(); return; }
+    onboardNick(name); return;
+  }
   if (S.screen === 'board') {
     const name = cleanName(e.target.nick.value);
     if (name.length < 2) { e.target.nick.focus(); return; }
@@ -1404,11 +1503,12 @@ document.addEventListener('keydown', e => {
 /* ------------------------------------------------------------------ */
 render();
 loadImages(false).then(() => {
-  const duelId = new URLSearchParams(location.search).get('duel');
-  if (duelId && /^[a-z0-9]{6,24}$/.test(duelId)) {
-    history.replaceState(null, '', appUrl());
-    openDuel(duelId);
-  } else go('home');
+  let duelId = new URLSearchParams(location.search).get('duel');
+  if (!(duelId && /^[a-z0-9]{6,24}$/.test(duelId))) duelId = null;
+  if (duelId) history.replaceState(null, '', appUrl());
+  if (!store.get(K.onboarded, false)) startOnboarding(duelId);
+  else if (duelId) openDuel(duelId);
+  else go('home');
 });
 </script>
 </body>
