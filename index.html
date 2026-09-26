@@ -165,6 +165,9 @@
   .lb-rank { width: 34px; text-align: center; font-size: 18px; color: var(--muted); }
   .lb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lb-val { color: var(--orange-d); }
+  .duel-card { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; }
+  .duel-card .dn { flex: 1; }
+  .vs { font-size: 13px; color: var(--muted); font-weight: 700; }
   .warn { background: #fff4e0; border: 2px solid #ffd79a; color: #8a5a00; border-radius: 14px; padding: 10px 12px; font-weight: 700; font-size: 14px; margin-bottom: 12px; }
   .credit { font-size: 11px; color: #aaa; margin-top: 6px; text-align: right; }
   .credit a { color: #aaa; }
@@ -358,7 +361,7 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1' };
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v1', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1' };
 
 let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
 let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
@@ -664,8 +667,10 @@ const SCREENS = {
         <span class="mi">📖</span><span class="mt">Atlas</span><span class="md">Prohlédni si všechna zvířata</span></button>
       <button class="btn purple mode big" data-act="exam" ${p.length ? '' : 'disabled'}>
         <span class="mi">📝</span><span><span class="mt">Zkouška nanečisto</span><br><span class="md">Napiš celé jméno každého zvířete. Dostaneš známku.</span></span></button>
-      <button class="btn gold mode big" data-act="board">
-        <span class="mi">🏆</span><span><span class="mt">Žebříček</span><br><span class="md">${PLAYER ? `Jsi tam jako ${esc(PLAYER.name)}` : 'Soutěž s kamarády'}</span></span></button>
+      <button class="btn gold mode" data-act="board">
+        <span class="mi">🏆</span><span class="mt">Žebříček</span><span class="md">${PLAYER ? `Jsi tam jako ${esc(PLAYER.name)}` : 'Soutěž s kamarády'}</span></button>
+      <button class="btn red mode" data-act="duels">
+        <span class="mi">⚔️</span><span class="mt">Výzvy</span><span class="md">Vyzvi kamaráda na souboj</span></button>
     </div>
 
     <div class="foot">
@@ -680,6 +685,7 @@ const SCREENS = {
   /* ----- Lesson / exam question ----- */
   lesson() {
     const L = S.L, it = L.queue[L.i];
+    if (L.duel && !it.shownAt) it.shownAt = Date.now();
     const pct = L.done / L.total * 100;
     let body = '';
     if (it.type === 'intro') {
@@ -694,7 +700,7 @@ const SCREENS = {
     }
     return `<div class="lesson-top"><button class="x" data-act="quit" title="Ukončit">✕</button>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      ${L.exam ? `<b class="small">${L.done}/${L.total}</b>` : ''}</div>
+      ${L.exam || L.duel ? `<b class="small">${L.duel ? '⚔️ ' : ''}${L.done}/${L.total}</b>` : ''}</div>
       ${body}`;
   },
 
@@ -918,7 +924,10 @@ function answer(it, ok, extra) {
   const firstTime = !it.retry;
   if (firstTime) L.firstQs++;
   if (ok && firstTime) L.firstTry++;
-  if (L.exam) {
+  if (L.duel) {
+    L.duel.ms += Date.now() - (it.shownAt || Date.now());
+    if (ok) L.duel.score++;
+  } else if (L.exam) {
     L.points += ok ? (extra.verdict === 'ok' ? 1 : 0.5) : 0;
     if (!ok || extra.verdict !== 'ok') L.mistakes.push({ a: it.a, img: it.img, answer: extra.typed || '—' });
   } else {
@@ -944,6 +953,7 @@ function next() {
     L.xp += L.exam ? 5 : 10;
     addXp(L.xp);
     bumpStreak();
+    if (L.duel) { finishDuel(L); return; }
     go('lessonEnd', { L });
     confetti(); beep(true);
     return;
@@ -953,9 +963,9 @@ function next() {
   maybeSpeakIntro();
 }
 
-async function shareApp() {
-  const url = location.href.split('#')[0].split('?')[0];
-  const data = { title: 'Poznávačka zvířat', text: 'Uč se poznávat zvířata na test 🦊', url };
+const appUrl = () => location.href.split('#')[0].split('?')[0];
+async function shareApp(url = appUrl(), text = 'Uč se poznávat zvířata na test 🦊') {
+  const data = { title: 'Poznávačka zvířat', text, url };
   try {
     if (navigator.share) { await navigator.share(data); return; }
   } catch (e) { if (e && e.name === 'AbortError') return; }
@@ -1065,7 +1075,7 @@ SCREENS.board = function () {
     return head + `<div class="hero center">
       <div class="big-emoji" style="margin-top:4px">🏆</div>
       <h2>${B.rename ? 'Nová přezdívka' : 'Soutěž s kamarády'}</h2>
-      <p class="muted" style="font-weight:700">${B.rename ? '' : 'Vyber si přezdívku. Ostatní uvidí jen ji, tvoje body za týden a kolik zvířat umíš.'}</p>
+      <p class="muted" style="font-weight:700">${B.rename ? '' : `${B.after ? 'Na výzvy potřebuješ přezdívku. ' : ''}Vyber si přezdívku. Ostatní uvidí jen ji, tvoje body za týden a kolik zvířat umíš.`}</p>
       <form data-form="nick" autocomplete="off">
         <input class="typein" name="nick" maxlength="16" placeholder="Přezdívka (2–16 znaků)" value="${esc(PLAYER ? PLAYER.name : '')}" autofocus>
         <button class="btn primary wide" style="margin-top:12px" type="submit">${B.rename ? 'Uložit' : 'Připojit se'}</button>
@@ -1103,6 +1113,9 @@ async function joinBoard(name) {
     await syncPlayer();
     store.set(K.player, PLAYER);
     S.B.rename = false;
+    const after = S.B.after;
+    if (after === 'duels') { newDuel(); return; }
+    if (after && after.startsWith('duel:')) { openDuel(after.slice(5)); return; }
     loadBoard();
   } catch (e) {
     PLAYER = store.get(K.player, null);
@@ -1117,6 +1130,159 @@ async function leaveBoard() {
     PLAYER = null; store.del(K.player); go('home');
   } catch (e) { alert('Nepovedlo se, zkus to znovu.'); }
 }
+
+/* ------------------------------------------------------------------ *
+ *  Duels: play 10 animals, send a link, friends get exactly the same   *
+ *  questions and photos. Ranking: most correct, then fastest.          *
+ *  duels/{id} holds the questions; duels/{id}/results/{uid} one try.   *
+ * ------------------------------------------------------------------ */
+const DUEL_N = 10;
+const findAnimal = id => ANIMALS.find(a => a.id === id);
+const fmtTime = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
+const randId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghijkmnopqrstuvwxyz23456789'[b % 33]).join('');
+function myDuels() { return store.get(K.duels, []); }
+function rememberDuel(d) { store.set(K.duels, [d, ...myDuels().filter(x => x.id !== d.id)].slice(0, 15)); }
+
+function duelQuestions() {
+  const P = shuffle(imgPool()).slice(0, DUEL_N);
+  return P.map(a => {
+    let q; do { q = makeQuestion(a, 2); } while (q.type === 'type');
+    if (q.type === 'pickName') return { a: a.id, t: 'pickName', img: q.img, o: q.options.map(x => x.id) };
+    if (q.type === 'epithet') return { a: a.id, t: 'epithet', img: q.img, o: q.options };
+    return { a: a.id, t: 'pickImage', img: q.img, o: q.options.map(x => ({ a: x.a.id, img: x.img })) };
+  });
+}
+function duelItems(qs) {
+  return qs.map(q => {
+    const a = findAnimal(q.a); if (!a) return null;
+    if (q.t === 'pickName') return { a, type: 'pickName', img: q.img, options: q.o.map(findAnimal).filter(Boolean) };
+    if (q.t === 'epithet') return { a, type: 'epithet', img: q.img, options: q.o };
+    return { a, type: 'pickImage', img: q.img, options: q.o.map(x => ({ a: findAnimal(x.a), img: x.img })).filter(x => x.a) };
+  }).filter(Boolean);
+}
+function startDuelGame(duel) {
+  const items = duelItems(duel.qs);
+  const L = { queue: items, i: 0, done: 0, total: items.length, questions: 0, firstQs: 0, firstTry: 0, xp: 0, mistakes: [], seenWrong: new Set(), exam: false,
+    duel: { ...duel, score: 0, ms: 0 } };
+  preload(items.flatMap(it => [it.img, ...(it.type === 'pickImage' ? it.options.map(o => o.img) : [])]));
+  go('lesson', { L });
+}
+function newDuel() {
+  if (!PLAYER) { go('board', { B: { tab: 'week', after: 'duels' } }); return; }
+  if (imgPool().length < DUEL_N) { alert(`Vyber skupiny s aspoň ${DUEL_N} zvířaty.`); return; }
+  startDuelGame({ id: randId(), create: true, qs: duelQuestions(), byName: PLAYER.name });
+}
+async function finishDuel(L) {
+  const d = L.duel;
+  go('duel', { D: { id: d.id, loading: true, justPlayed: { score: d.score, ms: d.ms, n: L.total } } });
+  confetti(); beep(true);
+  try {
+    const a = await fbToken();
+    const now = new Date();
+    if (d.create) {
+      await fsCall('PATCH', `duels/${d.id}`, fsDoc({ by: a.uid, byName: PLAYER.name, q: JSON.stringify(d.qs), n: d.qs.length, created: now }));
+    }
+    await fsCall('PATCH', `duels/${d.id}/results/${a.uid}`, fsDoc({ name: PLAYER.name, score: d.score, ms: Math.round(d.ms), at: now }));
+    rememberDuel({ id: d.id, by: d.byName, at: Date.now() });
+    await loadDuel(d.id);
+  } catch (e) {
+    S.D.loading = false; S.D.error = 'Výsledek se nepodařilo uložit. Zkontroluj internet.'; render();
+  }
+}
+async function loadDuel(id) {
+  const D = S.D;
+  D.loading = true; render();
+  try {
+    const doc = await fsCall('GET', `duels/${id}`);
+    const f = fsRead(doc.fields);
+    D.byName = f.byName; D.qs = JSON.parse(f.q);
+    const rows = await fsCall('POST', `duels/${id}:runQuery`, { structuredQuery: { from: [{ collectionId: 'results' }], limit: 100 } });
+    D.results = (rows || []).filter(r => r.document).map(r => ({ uid: r.document.name.split('/').pop(), ...fsRead(r.document.fields) }))
+      .sort((x, y) => (y.score - x.score) || (x.ms - y.ms));
+    D.me = (store.get(K.auth, null) || {}).uid;
+    D.played = D.results.some(r => r.uid === D.me);
+    D.error = null;
+  } catch (e) { D.error = /404/.test(e.message) ? 'Tahle výzva neexistuje.' : 'Výzvu se nepodařilo načíst. Zkontroluj internet.'; }
+  D.loading = false;
+  if (S.screen === 'duel') render();
+}
+function openDuel(id) { go('duel', { D: { id, loading: true } }); loadDuel(id); }
+function playDuel() {
+  if (!PLAYER) { go('board', { B: { tab: 'week', after: 'duel:' + S.D.id } }); return; }
+  startDuelGame({ id: S.D.id, create: false, qs: S.D.qs, byName: S.D.byName });
+}
+function shareDuel() {
+  const D = S.D, me = (D.results || []).find(r => r.uid === D.me);
+  const txt = me ? `Vyzývám tě! Poznal/a jsem ${me.score} z ${D.qs.length} zvířat za ${fmtTime(me.ms)}. Porazíš mě? ⚔️🦊` : 'Vyzývám tě na souboj v poznávání zvířat! ⚔️🦊';
+  shareApp(`${appUrl()}?duel=${D.id}`, txt);
+}
+async function openDuels() {
+  go('duels', { L2: { list: myDuels(), res: {} } });
+  const me = (store.get(K.auth, null) || {}).uid;
+  for (const d of myDuels().slice(0, 8)) {
+    try {
+      const rows = await fsCall('POST', `duels/${d.id}:runQuery`, { structuredQuery: { from: [{ collectionId: 'results' }], limit: 100 } });
+      const rs = (rows || []).filter(r => r.document).map(r => ({ uid: r.document.name.split('/').pop(), ...fsRead(r.document.fields) }))
+        .sort((x, y) => (y.score - x.score) || (x.ms - y.ms));
+      if (S.screen !== 'duels') return;
+      S.L2.res[d.id] = { n: rs.length, rank: rs.findIndex(r => r.uid === me) + 1, leader: rs[0] };
+      render();
+    } catch (e) { /* offline: keep the plain list */ }
+  }
+}
+
+SCREENS.duels = function () {
+  const { list, res } = S.L2;
+  return `<div class="lesson-top"><button class="x" data-act="home" title="Zpět">✕</button><h2 style="flex:1">⚔️ Výzvy</h2></div>
+    <div class="hero">
+      <b style="font-size:18px">Vyzvi kamarády</b>
+      <p class="muted" style="font-weight:700;margin:6px 0 12px">Zahraješ si ${DUEL_N} zvířat z vybraných skupin a pošleš odkaz. Kamarádi dostanou úplně stejné otázky. Vyhrává víc správně, při shodě rychlejší.</p>
+      <button class="btn red wide" data-act="newDuel">⚔️ Nová výzva</button>
+    </div>
+    ${list.length ? `<div class="section-title"><span>Moje výzvy</span></div><div class="lb">${list.map(d => {
+      const r = res[d.id];
+      return `<button class="btn duel-card" data-act="openDuel" data-id="${esc(d.id)}">
+        <span style="font-size:26px">${r && r.rank === 1 ? '🥇' : '⚔️'}</span>
+        <span class="dn">Výzva od ${esc(d.by)}<br><span class="vs">${r ? `${r.n} ${r.n === 1 ? 'hráč' : r.n < 5 ? 'hráči' : 'hráčů'} · ${r.rank ? `jsi ${r.rank}.` : ''} · vede ${esc(r.leader.name)}` : new Date(d.at).toLocaleDateString('cs-CZ')}</span></span>
+        <span class="vs">›</span></button>`;
+    }).join('')}</div>` : ''}`;
+};
+
+SCREENS.duel = function () {
+  const D = S.D;
+  const head = `<div class="lesson-top"><button class="x" data-act="duels" title="Zpět">✕</button><h2 style="flex:1">⚔️ Výzva</h2></div>`;
+  if (D.loading) return head + `<div class="loading"><div class="spin">⚔️</div><h2>Načítám…</h2></div>`;
+  if (D.error && !D.results) return head + `<div class="warn">${esc(D.error)}</div><button class="btn primary wide" data-act="home">Domů</button>`;
+  const rows = D.results || [];
+  const meIdx = rows.findIndex(r => r.uid === D.me);
+  const jp = D.justPlayed;
+  const medal = i => ['🥇', '🥈', '🥉'][i] || (i + 1);
+  let top;
+  if (jp) {
+    const won = meIdx === 0 && rows.length > 1;
+    top = `<div class="center"><div class="big-emoji">${won ? '🏆' : meIdx === 0 ? '⚔️' : '💪'}</div>
+      <h1 style="color:var(--orange)">${jp.score} z ${jp.n}</h1>
+      <p style="font-weight:800">za ${fmtTime(jp.ms)} · ${rows.length > 1 ? `jsi ${meIdx + 1}. z ${rows.length}` : 'teď to pošli kamarádům!'}</p></div>`;
+  } else if (!D.played) {
+    top = `<div class="center"><div class="big-emoji">⚔️</div>
+      <h1>${esc(D.byName)} tě vyzývá!</h1>
+      <p class="muted" style="font-weight:700">${D.qs.length} zvířat. Vyhrává víc správně, při shodě rychlejší. Máš jen jeden pokus.</p>
+      <button class="btn red wide" data-act="playDuel" autofocus>Hrát</button></div>`;
+  } else {
+    top = `<div class="center"><h2>Výzva od ${esc(D.byName)}</h2></div>`;
+  }
+  return head + top + `
+    ${D.error ? `<div class="warn">${esc(D.error)}</div>` : ''}
+    ${rows.length ? `<div class="section-title"><span>Výsledky</span></div>
+      <div class="lb">${rows.map((r, i) => `<div class="lb-row ${r.uid === D.me ? 'me' : ''}">
+        <span class="lb-rank">${medal(i)}</span><span class="lb-name">${esc(r.name)}${r.uid === D.me ? ' (ty)' : ''}</span>
+        <span class="lb-val">${r.score}/${D.qs.length} · ${fmtTime(r.ms)}</span></div>`).join('')}</div>` : ''}
+    <div style="display:grid;gap:10px;margin-top:18px">
+      ${D.played ? `<button class="btn red wide" data-act="shareDuel">📤 Poslat výzvu kamarádům</button>` : ''}
+      <button class="btn ghost wide" data-act="newDuel">⚔️ Nová výzva</button>
+      <button class="btn primary wide" data-act="home">Domů</button>
+    </div>`;
+};
 
 /* ------------------------------------------------------------------ *
  *  Events                                                             *
@@ -1161,6 +1327,11 @@ $app.addEventListener('click', e => {
     case 'retry': go('loading'); loadImages(true).then(() => go('home')); break;
     case 'toggleAll': SELECTED = SELECTED.length === GROUPS.length ? [] : GROUPS.map(g => g.id); store.set(K.sel, SELECTED); render(); break;
     case 'share': shareApp(); break;
+    case 'duels': openDuels(); break;
+    case 'newDuel': newDuel(); break;
+    case 'playDuel': playDuel(); break;
+    case 'shareDuel': shareDuel(); break;
+    case 'openDuel': openDuel(actEl.dataset.id); break;
     case 'board': go('board', { B: { tab: 'week', rows: null } }); if (PLAYER) loadBoard(); break;
     case 'tabWeek': S.B.tab = 'week'; loadBoard(); break;
     case 'tabAll': S.B.tab = 'all'; loadBoard(); break;
@@ -1232,7 +1403,13 @@ document.addEventListener('keydown', e => {
 
 /* ------------------------------------------------------------------ */
 render();
-loadImages(false).then(() => go('home'));
+loadImages(false).then(() => {
+  const duelId = new URLSearchParams(location.search).get('duel');
+  if (duelId && /^[a-z0-9]{6,24}$/.test(duelId)) {
+    history.replaceState(null, '', appUrl());
+    openDuel(duelId);
+  } else go('home');
+});
 </script>
 </body>
 </html>
