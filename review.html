@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Kontrola fotek</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #09090f; color: #f5f5fb; font: 15px/1.4 system-ui, -apple-system, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 16px 16px 110px; }
+  h1 { font-size: 24px; margin: 4px 0 6px; }
+  .hint { color: #a2a2bd; margin: 0 0 16px; }
+  h2 { font-size: 18px; margin: 26px 0 8px; }
+  .animal { margin: 12px 0 18px; }
+  .name { font-weight: 800; }
+  .name i { color: #a2a2bd; font-weight: 400; margin-left: 6px; }
+  .row { display: flex; gap: 8px; overflow-x: auto; padding: 6px 0; }
+  .ph { flex: none; width: 128px; border-radius: 14px; overflow: hidden; background: #1a1a26; border: 2px solid #2a2a3a; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .ph img { display: block; width: 124px; height: 124px; object-fit: contain; background: #111; }
+  .ph span { display: block; padding: 4px 8px 6px; font-size: 11px; color: #a2a2bd; }
+  .ph.bad { border-color: #ff4d8d; }
+  .ph.bad img { opacity: .35; }
+  .ph.bad span { color: #ff7aa8; font-weight: 800; }
+  .ph.filtered { border-style: dashed; }
+  .none { color: #ff7aa8; font-size: 13px; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: rgba(9,9,15,.92); backdrop-filter: blur(16px); border-top: 1px solid #2a2a3a; display: flex; gap: 10px; align-items: center; justify-content: center; }
+  .bar button { font: inherit; font-weight: 800; border: 0; border-radius: 14px; padding: 12px 16px; background: #b6ff3b; color: #0b1400; }
+  .bar button.sec { background: #2a2a3a; color: #f5f5fb; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kontrola fotek</h1>
+  <p class="hint">Ťukni na každou fotku, která nesedí (mapa, jiné zvíře, kresba, která nepomáhá…). Zčervená. Pak dole „Kopírovat seznam“ a pošli ho. Označení se pamatuje, můžeš pokračovat později.<br>
+  Čárkovaný rámeček = fotku už teď schovává automatický filtr map.</p>
+  <div id="list">Načítám fotky z Wikipedie…</div>
+</main>
+<div class="bar"><span id="count">0 označeno</span><button class="sec" id="clear">Zrušit vše</button><button id="copy">Kopírovat seznam</button></div>
+<script>
+'use strict';
+const KEY = 'zv-review-marks-v1';
+let marks = {};
+try { marks = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch (e) {} };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fileKey = url => { const p = url.split('/'); return decodeURIComponent(/px-/.test(p[p.length - 1]) ? p[p.length - 2] : p[p.length - 1]); };
+
+async function wikiThumbs(host, titles) {
+  const out = {};
+  for (let i = 0; i < titles.length; i += 50) {
+    const chunk = titles.slice(i, i + 50);
+    const r = await fetch(`https://${host}/w/api.php?action=query&format=json&formatversion=2&origin=*&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=400&pilimit=50&titles=` + encodeURIComponent(chunk.join('|')));
+    const q = (await r.json()).query || {};
+    const fin = {}; chunk.forEach(t => fin[t] = t);
+    const follow = l => (l || []).forEach(n => { for (const k in fin) if (fin[k] === n.from) fin[k] = n.to; });
+    follow(q.normalized); follow(q.redirects);
+    const by = {}; (q.pages || []).forEach(p => { if (p.thumbnail) by[p.title] = p.thumbnail.source; });
+    chunk.forEach(t => { if (by[fin[t]]) out[t] = by[fin[t]]; });
+  }
+  return out;
+}
+
+(async () => {
+  // reuse the animal list and map filter straight from the app
+  const app = await (await fetch('./?review=' + Date.now())).text();
+  const RAW = app.match(/const RAW = `([\s\S]*?)`;/)[1];
+  const MAP_RE = eval(app.match(/const MAP_RE = (.*);/)[1]);
+  const isMap = u => MAP_RE.test(fileKey(u).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/_/g, ' '));
+  const GROUPS = { kru: '🌀 Kruhoústí', par: '🦈 Paryby', ryb: '🐟 Ryby', obo: '🐸 Obojživelníci', pla: '🦎 Plazi', pta: '🐦 Ptáci', sav: '🐘 Savci' };
+  const animals = RAW.trim().split('\n').map(l => { const [g, cz, la] = l.split('|').map(s => s.trim()); return { g, cz, la }; });
+  const [en, csLa, csCz, de] = await Promise.all([
+    wikiThumbs('en.wikipedia.org', animals.map(a => a.la)).catch(() => ({})),
+    wikiThumbs('cs.wikipedia.org', animals.map(a => a.la)).catch(() => ({})),
+    wikiThumbs('cs.wikipedia.org', animals.map(a => a.cz)).catch(() => ({})),
+    wikiThumbs('de.wikipedia.org', animals.map(a => a.la)).catch(() => ({})),
+  ]);
+  let html = '', lastG = '';
+  animals.forEach((a, i) => {
+    if (a.g !== lastG) { html += `<h2>${GROUPS[a.g]}</h2>`; lastG = a.g; }
+    const cands = [];
+    [['EN', en[a.la]], ['CS', csLa[a.la] || csCz[a.cz]], ['DE', de[a.la]]].forEach(([src, u]) => {
+      if (u && !cands.some(c => fileKey(c.u) === fileKey(u))) cands.push({ src, u });
+    });
+    html += `<div class="animal"><div class="name">${i + 1}. ${esc(a.cz)}<i>${esc(a.la)}</i></div><div class="row">` +
+      (cands.length ? cands.map(c => {
+        const f = fileKey(c.u);
+        return `<button class="ph ${marks[f] ? 'bad' : ''} ${isMap(c.u) ? 'filtered' : ''}" data-f="${esc(f)}" data-a="${esc(a.cz)}">
+          <img src="${esc(c.u)}" loading="lazy" alt=""><span>${c.src}${isMap(c.u) ? ' · filtr' : ''}${marks[f] ? ' · ŠPATNĚ' : ''}</span></button>`;
+      }).join('') : '<span class="none">Žádná fotka</span>') + `</div></div>`;
+  });
+  document.getElementById('list').innerHTML = html;
+  count();
+})().catch(e => { document.getElementById('list').textContent = 'Nepodařilo se načíst: ' + e.message; });
+
+function count() { document.getElementById('count').textContent = Object.keys(marks).length + ' označeno'; }
+document.addEventListener('click', e => {
+  const b = e.target.closest('.ph'); if (!b) return;
+  const f = b.dataset.f;
+  if (marks[f]) delete marks[f]; else marks[f] = b.dataset.a;
+  b.classList.toggle('bad', !!marks[f]);
+  b.querySelector('span').textContent = b.querySelector('span').textContent.replace(' · ŠPATNĚ', '') + (marks[f] ? ' · ŠPATNĚ' : '');
+  save(); count();
+});
+document.getElementById('clear').onclick = () => { if (confirm('Zrušit všechna označení?')) { marks = {}; save(); location.reload(); } };
+document.getElementById('copy').onclick = async () => {
+  const text = Object.entries(marks).map(([f, a]) => `${a} | ${f}`).join('\n') || '(nic neoznačeno)';
+  try { await navigator.clipboard.writeText(text); alert('Zkopírováno, vlož to do chatu.'); }
+  catch (e) { prompt('Zkopíruj:', text); }
+};
+</script>
+</body>
+</html>
