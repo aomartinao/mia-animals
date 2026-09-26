@@ -256,6 +256,8 @@
   .pic.fit::before, .pic.whole::before, .whole-photos .pic::before { content: ""; position: absolute; inset: -30px; background: var(--pic) center / cover; filter: blur(22px) brightness(.55) saturate(1.2); }
   .pic.fit img, .pic.whole img, .whole-photos .pic img { position: relative; object-fit: contain; object-position: center !important; background: transparent; }
   [hidden] { display: none !important; }
+  .photo-mode .ico { width: 14px; height: 14px; vertical-align: -2px; }
+  .photo-mode.on { background: var(--ink); color: #0b0b12; }
   .photo-mode { flex: none; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 12px; padding: 8px 10px; font-weight: 800; font-size: 13px; }
   .search { width: 100%; font: inherit; font-size: 16px; font-weight: 700; padding: 11px 14px 11px 40px; border-radius: 14px; border: 1px solid var(--line-d);
     background: rgba(255,255,255,.06) no-repeat 12px center / 18px; color: var(--ink); outline: none; margin: 4px 0 10px;
@@ -538,7 +540,9 @@ const $app = document.getElementById('app');
 // Photo mode for every picture: smart crop (default) or whole photo on a blurred backdrop
 let WHOLE = store.get(K.whole, false);
 document.body.classList.toggle('whole-photos', WHOLE);
-const photoBtn = () => `<button class="photo-mode" data-act="photoMode" title="Přepnout ořez / celé fotky">${WHOLE ? '✂️ Ořez' : '⤢ Celé'}</button>`;
+const EXPAND_ICON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v7M9 5l3-3 3 3M12 22v-7M9 19l3 3 3-3M2 12h7M5 9l-3 3 3 3M22 12h-7M19 9l3 3-3 3"/></svg>';
+const photoLabel = () => WHOLE ? '✂️ Ořez' : EXPAND_ICON + ' Celé';
+const photoBtn = () => `<button class="photo-mode" data-act="photoMode" title="Přepnout ořez / celé fotky">${photoLabel()}</button>`;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const sample = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -931,10 +935,9 @@ const SCREENS = {
   atlas() {
     const hide = S.hide;
     return `<div class="sticky-head"><div class="lesson-top" style="margin-bottom:6px"><button class="x" data-act="home" title="Zpět">✕</button>
-      <h2 style="flex:1">📖 Atlas</h2>${photoBtn()}</div>
-      <input class="search" type="search" data-search placeholder="Hledat zvíře…" value="${esc(S.q || '')}" autocomplete="off" autocorrect="off" spellcheck="false">
-      <div style="display:flex;gap:18px;flex-wrap:wrap">
-        <label class="toggle"><input type="checkbox" data-act="hideNames" ${hide ? 'checked' : ''}> Schovat jména</label></div></div>
+      <h2 style="flex:1">Atlas</h2>
+      <button class="photo-mode ${hide ? 'on' : ''}" data-act="hideNames" title="Schovat / ukázat jména">${hide ? '👀 Ukázat jména' : '🙈 Schovat jména'}</button>${photoBtn()}</div>
+      <input class="search" type="search" data-search placeholder="Hledat zvíře…" value="${esc(S.q || '')}" autocomplete="off" autocorrect="off" spellcheck="false"></div>
       ${GROUPS.map(g => `<div class="agroup">
         <div class="section-title" style="color:${g.color}"><span>${g.icon} ${g.name}</span></div>
         <div class="atlas-grid">${ANIMALS.filter(a => a.g === g.id).map(a => `
@@ -1581,7 +1584,7 @@ $app.addEventListener('click', e => {
   }
 
   const open = e.target.closest('[data-open]');
-  if (open) { S.open = open.dataset.open; S.openIdx = 0; render(); say(S.open); return; }
+  if (open) { EGG = false; S.open = open.dataset.open; S.openIdx = 0; render(); say(S.open); return; }
 
   const actEl = e.target.closest('[data-act]');
   if (!actEl) return;
@@ -1630,18 +1633,18 @@ $app.addEventListener('click', e => {
     case 'cardYes': case 'cardNo': {
       const C = S.C, ok = act === 'cardYes';
       record(C.queue[C.i], ok); if (ok) { C.yes++; addXp(1); }
-      C.i++; C.flipped = false;
+      C.i++; C.flipped = false; EGG = false;
       if (C.i >= C.queue.length) { go('cardsEnd', { C }); confetti(); }
       else { C.img = pickImg(C.queue[C.i]); render(); }
       break;
     }
     case 'photoMode':
       WHOLE = !WHOLE; store.set(K.whole, WHOLE); document.body.classList.toggle('whole-photos', WHOLE);
-      document.querySelectorAll('.photo-mode').forEach(b => { b.textContent = WHOLE ? '✂️ Ořez' : '⤢ Celé'; });
+      document.querySelectorAll('[data-act=photoMode]').forEach(b => { b.innerHTML = photoLabel(); });
       break;
-    case 'hideNames': S.hide = actEl.checked; store.set(K.hide, S.hide); { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
-    case 'closeModal': S.open = null; { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
-    case 'nextImg': S.openIdx++; { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
+    case 'hideNames': S.hide = !S.hide; store.set(K.hide, S.hide); { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
+    case 'closeModal': EGG = false; S.open = null; { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
+    case 'nextImg': EGG = false; S.openIdx++; { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
     case 'badImg': {
       const a = ANIMALS.find(x => x.id === S.open);
       const list = imgsOf(a); const url = list[S.openIdx % list.length];
