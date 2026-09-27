@@ -87,31 +87,34 @@
   /* ===== Home ===== */
   .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 16px; }
   .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 24px; font-weight: 800; letter-spacing: -.03em; }
-  .logo-ring { position: relative; width: 52px; height: 52px; flex: none; }
-  .logo-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
-  .logo-ring .logo { position: absolute; inset: 7px; width: 38px !important; height: 38px !important; font-size: 22px !important; }
-  .brand-text { display: flex; flex-direction: column; line-height: 1.05; }
-  .brand-text small { font-family: "Plus Jakarta Sans", sans-serif; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0; margin-top: 4px; }
   .brand .logo { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; font-size: 24px;
     background: linear-gradient(135deg, var(--green), #3ddc84); box-shadow: 0 6px 20px rgba(182,255,59,.35); }
   .stats { display: flex; gap: 8px; font-weight: 800; }
   .pillstat { display: inline-flex; gap: 5px; align-items: center; padding: 7px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: 15px; }
+  .overall { margin: 2px 0 6px; }
+  .ov-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .ov-num { font-family: var(--display); font-size: 40px; font-weight: 800; line-height: 1; color: var(--green); letter-spacing: -.03em; text-shadow: 0 0 24px rgba(182,255,59,.35); }
+  .ov-num small { font-size: 22px; color: var(--muted); text-shadow: none; }
+  .ov-label { font-weight: 800; font-size: 16px; }
+  .ov-pct { margin-left: auto; font-family: var(--display); font-weight: 800; font-size: 22px; }
+  .ov-bar { height: 14px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .ov-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #d4ff7a, var(--green), #3ddc84); box-shadow: 0 0 16px rgba(182,255,59,.55); transition: width .6s; }
   .bento { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .span2 { grid-column: 1 / -1; }
-  .tile { position: relative; overflow: hidden; border-radius: 26px; padding: 16px; min-height: 128px; text-align: left; border: 0;
+  .tile { position: relative; overflow: hidden; border-radius: 22px; padding: 14px; min-height: 96px; text-align: left; border: 0;
     display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; color: #0b0b12;
     box-shadow: 0 5px 0 var(--edge, rgba(0,0,0,.4)), 0 14px 30px -12px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.35);
     transition: transform .08s, box-shadow .08s; }
   .tile:active { transform: translateY(4px) scale(.99); box-shadow: 0 1px 0 var(--edge, rgba(0,0,0,.4)), inset 0 1px 0 rgba(255,255,255,.35); }
   .tile[disabled] { filter: grayscale(.8) brightness(.6); }
-  .tile .ti { position: absolute; top: 10px; right: 12px; font-size: 52px; line-height: 1; transform: rotate(8deg);
+  .tile .ti { position: absolute; top: 8px; right: 10px; font-size: 40px; line-height: 1; transform: rotate(8deg);
     filter: drop-shadow(0 8px 10px rgba(0,0,0,.35)); transition: transform .3s; }
   .tile:hover .ti { transform: rotate(-4deg) scale(1.08); }
-  .tile .tt { font-family: var(--display); font-weight: 800; font-size: 21px; letter-spacing: -.02em; }
+  .tile .tt { font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: -.02em; }
   .tile .td { font-size: 12.5px; font-weight: 700; opacity: .75; max-width: 85%; }
-  .tile.hero-tile { min-height: 150px; }
-  .tile.hero-tile .ti { font-size: 76px; top: 14px; right: 18px; }
-  .tile.hero-tile .tt { font-size: 28px; }
+  .tile.hero-tile { min-height: 112px; }
+  .tile.hero-tile .ti { font-size: 56px; top: 12px; right: 16px; }
+  .tile.hero-tile .tt { font-size: 24px; }
   .tile .go { position: absolute; left: 16px; top: 16px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
     background: rgba(0,0,0,.18); padding: 5px 9px; border-radius: 999px; }
   .t-lesson { background: linear-gradient(135deg, #d9ff7f 0%, #9ef01a 55%, #3ddc84 100%); --edge: #5f9e10; }
@@ -131,14 +134,18 @@
   .bar.thin { height: 6px; }
   .section-title { font-family: var(--display); font-weight: 800; font-size: 17px; letter-spacing: -.01em; margin: 22px 0 10px; display: flex; justify-content: space-between; align-items: center; }
   .section-title .small { font-family: "Plus Jakarta Sans", sans-serif; color: var(--muted); font-weight: 700; }
-  .groups { display: flex; flex-wrap: wrap; gap: 8px; }
-  .group { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px 11px; border-radius: 16px;
-    background: rgba(255,255,255,.07); border: 1px solid var(--line); color: var(--ink); opacity: .5; transition: opacity .2s, transform .1s, border-color .2s; font-weight: 800; font-size: 14px; }
+  .groups { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .groups .group:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .group { min-width: 0; position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: flex-start; gap: 8px; padding: 11px 10px 13px; text-align: left; border-radius: 18px;
+    background: rgba(255,255,255,.07); border: 1px solid var(--line); color: var(--ink); opacity: .5; transition: opacity .2s, transform .1s, border-color .2s; font-weight: 800; font-size: 15px; letter-spacing: -.01em; }
   .group.on { opacity: 1; border-color: var(--gc, var(--green)); box-shadow: 0 0 0 1px var(--gc, var(--green)), 0 6px 18px -10px var(--gc, var(--green)); }
   .group:active { transform: scale(.97); }
-  .group .gi { font-size: 18px; line-height: 1; }
-  .group .gcount { font-size: 12px; color: var(--muted); font-weight: 700; }
-  .group .gbar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--gc, var(--green)); box-shadow: 0 0 8px var(--gc, var(--green)); }
+  .group .gi { font-size: 24px; line-height: 1; }
+  .group .gtext { display: flex; flex-direction: column; min-width: 0; }
+  @media (max-width: 379px) { .group { font-size: 13.5px; gap: 6px; padding-left: 8px; padding-right: 8px; } .group .gi { font-size: 21px; } }
+  .group .gname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .group .gcount { font-size: 12px; color: var(--muted); font-weight: 700; margin-top: 2px; }
+  .group .gbar { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--gc, var(--green)); box-shadow: 0 0 8px var(--gc, var(--green)); }
   .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .foot { margin-top: auto; padding-top: 26px; text-align: center; }
 
@@ -908,18 +915,16 @@ const SCREENS = {
     const known = ANIMALS.filter(isKnown).length;
     const p = pool();
     const noImg = ANIMALS.filter(a => !hasImg(a));
-    const pct = known / all, R = 23, C = 2 * Math.PI * R;
+    const pct = known / all;
     const dis = p.length ? '' : 'disabled';
     return `
     <div class="top">
-      <div class="brand">
-        <span class="logo-ring" title="Umíš ${known} z ${all}">
-          <svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="${R}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="4"/>
-            <circle cx="26" cy="26" r="${R}" fill="none" stroke="#b6ff3b" stroke-width="4" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/></svg>
-          <span class="logo">🦊</span></span>
-        <span class="brand-text">Poznávačka<small>Umíš ${known} z ${all} · ${Math.round(pct * 100)} %</small></span>
-      </div>
+      <div class="brand"><span class="logo">🦊</span>Poznávačka</div>
       <div class="stats"><span class="pillstat" title="Dny v řadě">🔥 ${currentStreak()}</span><span class="pillstat" title="Body">⭐ ${STATS.xp}</span></div>
+    </div>
+    <div class="overall" title="Celkový pokrok">
+      <div class="ov-head"><span class="ov-num">${known}<small> / ${all}</small></span><span class="ov-label">zvířat umíš</span><span class="ov-pct">${Math.round(pct * 100)} %</span></div>
+      <div class="ov-bar"><i style="width:${Math.max(pct * 100, known ? 2 : 0)}%"></i></div>
     </div>
     ${IMG_STATE === 'failed' ? `<div class="warn">Nepodařilo se načíst obrázky z Wikipedie. Zkontroluj internet. <button class="btn ghost" data-act="retry">Zkusit znovu</button></div>` : ''}
 
@@ -930,7 +935,7 @@ const SCREENS = {
         const list = ANIMALS.filter(a => a.g === g.id);
         const k = list.filter(isKnown).length;
         return `<button class="group ${SELECTED.includes(g.id) ? 'on' : ''}" data-group="${g.id}" style="--gc:${g.color}">
-          <span class="gi">${g.icon}</span><span class="gname">${g.name}</span><span class="gcount">${k}/${list.length}</span>
+          <span class="gi">${g.icon}</span><span class="gtext"><span class="gname">${g.name}</span><span class="gcount">${k} / ${list.length} umíš</span></span>
           <i class="gbar" style="width:${k / list.length * 100}%"></i>
         </button>`;
       }).join('')}
