@@ -68,3 +68,21 @@ test('Atlas detail can mark and un-mark an animal; flashcards skip mastered ones
   await page.click('[data-act=lesson]');
   expect(await page.evaluate(() => S.screen)).toBe('home');
 });
+
+test('"Tohle znám" is offered only on the first appearance of an animal in a lesson', async ({ page }) => {
+  await openApp(page);
+  await page.click('[data-act=lesson]');
+  const firsts = await page.evaluate(() => { const seen = new Set(); return S.L.queue.map(it => { const f = !seen.has(it.a.id); seen.add(it.a.id); return f === !!it.offerKnow; }); });
+  expect(firsts.every(Boolean)).toBe(true);
+  // play on, answering correctly; the option must never show on a repeated animal
+  const shownFor = new Set();
+  while (await page.evaluate(() => S.screen) === 'lesson') {
+    const info = await page.evaluate(() => ({ id: S.L.queue[S.L.i].a.id, type: S.L.queue[S.L.i].type }));
+    const it = await answer(page);
+    if (await page.locator('[data-act=mastered]').count()) {
+      expect(shownFor.has(info.id)).toBe(false);
+      shownFor.add(info.id);
+    }
+    if (it.type !== 'intro') await page.keyboard.press('Enter');
+  }
+});

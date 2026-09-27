@@ -980,7 +980,7 @@ const SCREENS = {
     const pct = L.done / L.total * 100;
     let body = '';
     if (it.type === 'intro') {
-      body = `<div class="intro-head"><span class="badge">Nové zvíře</span>${!L.exam && !L.duel ? `<button class="know-btn" data-act="mastered" title="Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)">✓ Tohle znám – už neukazovat</button>` : ''}</div>
+      body = `<div class="intro-head"><span class="badge">Nové zvíře</span>${it.offerKnow ? `<button class="know-btn" data-act="mastered" title="Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)">✓ Tohle znám – už neukazovat</button>` : ''}</div>
         ${picHtml(it.img, it.a, 'pop')}
         <div class="intro-name">${nameHtml(it.a)} ${speakBtn(it.a)}</div>
         <div class="intro-sub">${esc(it.a.la)} · ${GROUP_BY_ID[it.a.g].icon} ${GROUP_BY_ID[it.a.g].name}</div>
@@ -1145,7 +1145,7 @@ function questionBody(it, L) {
       : `<b>${nameHtml(a)}</b>`;
     fb = `<div class="spacer"></div><div class="feedback ${st.ok ? 'ok' : 'bad'}">
       <h3>${st.ok ? '✅' : '❌'} ${title}</h3><p>${msg} ${speakBtn(a)}</p>
-      ${st.ok && !L.exam && !L.duel ? `<div class="know-row"><button class="know-btn" data-act="mastered" title="Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)">✓ Tohle znám – už neukazovat</button></div>` : ''}
+      ${st.ok && it.offerKnow ? `<div class="know-row"><button class="know-btn" data-act="mastered" title="Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)">✓ Tohle znám – už neukazovat</button></div>` : ''}
       <button class="btn primary wide ${st.ok ? '' : 'bad'}" data-act="next" autofocus>Pokračovat</button></div>`;
   }
   return html + fb;
@@ -1188,6 +1188,9 @@ function startLesson(fromList) {
       const a = sample(P); items.push(makeQuestion(a, prog(a).b));
     }
   }
+  // 'Tohle znám' is offered only where an animal first shows up in the lesson
+  const offered = new Set();
+  items.forEach(it => { if (!offered.has(it.a.id)) { offered.add(it.a.id); it.offerKnow = true; } });
   const L = { queue: items, i: 0, done: 0, total: items.length, questions: 0, firstQs: 0, firstTry: 0, xp: 0, mistakes: [], seenWrong: new Set(), exam: false };
   preload(items.flatMap(it => [it.img, ...(it.type === 'pickImage' ? it.options.map(o => o.img) : [])]));
   go('lesson', { L });
