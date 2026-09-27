@@ -63,6 +63,8 @@ test('welcome offers two equal ways in: start without login, or Google', async (
   const page = await ctx.newPage();
   await openApp(page);
   await expect(page.locator('.start-choices [data-act=onbNext]')).toContainText('Začít bez přihlášení');
-  await expect(page.locator('.start-choices [data-act=google]')).toContainText('Přihlásit přes Google');
+  await expect(page.locator('.start-choices [data-act=google]')).toContainText('Přihlásit se přes Google');
+  await expect(page.locator('.start-choices [data-act=google] svg.g-logo')).toBeVisible();
+  await expect(page.locator('.start-choices [data-act=onbNext]')).toContainText('Pokrok a přezdívka');
   await expect(page.locator('body')).not.toContainText('Už ji používám jinde');
 });

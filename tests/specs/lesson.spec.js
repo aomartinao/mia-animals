@@ -46,3 +46,18 @@ test('the photo is not reloaded (no blink) after answering', async ({ page }) =>
     await page.keyboard.press('Enter');
   }
 });
+
+test('sound can be switched off from inside a lesson and from the Atlas detail', async ({ page }) => {
+  await openApp(page);
+  await page.click('[data-act=lesson]');
+  await page.click('.lesson-top [data-act=sound]');
+  expect(await page.evaluate(() => [SOUND, S.screen])).toEqual([false, 'lesson']);
+  await expect(page.locator('.lesson-top [data-act=sound]')).toHaveText('🔇');
+  await page.click('.lesson-top [data-act=quit]');
+  await page.click('[data-act=atlas]');
+  await page.click('[data-open]');
+  await page.click('.detail [data-act=sound]');
+  expect(await page.evaluate(() => [SOUND, S.open != null])).toEqual([true, true]);
+  await page.click('.detail-x[data-act=closeModal]');
+  expect(await page.evaluate(() => S.open)).toBeNull();
+});
