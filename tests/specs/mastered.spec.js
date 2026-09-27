@@ -3,14 +3,18 @@ import { setupMocks, openApp, answer } from '../helpers.js';
 
 test.beforeEach(async ({ context }) => { await setupMocks(context); });
 
-test('home shows all 7 groups at once, progress next to the logo', async ({ page }) => {
+test('home shows all 7 groups at once in full-width rows, overall progress bar', async ({ page }) => {
   await openApp(page);
   await expect(page.locator('.group')).toHaveCount(7);
   const vw = page.viewportSize().width;
   const boxes = await page.$$eval('.group', gs => gs.map(g => g.getBoundingClientRect()).map(r => ({ l: r.left, r: r.right })));
   for (const b of boxes) { expect(b.l).toBeGreaterThanOrEqual(0); expect(b.r).toBeLessThanOrEqual(vw); }
-  await expect(page.locator('.brand-text small')).toContainText('Umíš 0 z 147');
+  await expect(page.locator('.overall .ov-num')).toHaveText('0 / 147');
   await expect(page.locator('.progress-card')).toHaveCount(0);
+  // every row of group chips spans the full width
+  const rows = await page.$$eval('.group', gs => { const m = {}; gs.forEach(g => { const r = g.getBoundingClientRect(); (m[Math.round(r.top)] ||= []).push(r); }); return Object.values(m).map(rs => [Math.min(...rs.map(r => r.left)), Math.max(...rs.map(r => r.right))]); });
+  const container = await page.$eval('.groups', e => { const r = e.getBoundingClientRect(); return [r.left, r.right]; });
+  for (const [l, r] of rows) { expect(Math.abs(l - container[0])).toBeLessThan(2); expect(Math.abs(r - container[1])).toBeLessThan(2); }
 });
 
 test('"umím na 100 %" in a lesson removes the animal from training but not from the exam', async ({ page }) => {
@@ -28,7 +32,7 @@ test('"umím na 100 %" in a lesson removes the animal from training but not from
   await page.evaluate(() => go('home'));
   expect(await page.evaluate(() => trainPool().map(a => a.id))).not.toContain(id);
   expect(await page.evaluate(() => imgPool().map(a => a.id))).toContain(id);          // exam/duels still use it
-  await expect(page.locator('.brand-text small')).toContainText('Umíš 1 z 147');
+  await expect(page.locator('.overall .ov-num')).toHaveText('1 / 147');
 });
 
 test('mastered button only after a correct answer, never in the exam', async ({ page }) => {
