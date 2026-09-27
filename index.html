@@ -1951,7 +1951,9 @@ $app.addEventListener('click', e => {
   const g = e.target.closest('[data-group]');
   if (g) {
     const id = g.dataset.group;
-    SELECTED = SELECTED.includes(id) ? SELECTED.filter(x => x !== id) : [...SELECTED, id];
+    // With everything selected, a tap means "just this one" (e.g. only fish); after that taps add/remove groups.
+    SELECTED = SELECTED.length === GROUPS.length ? [id]
+      : SELECTED.includes(id) ? SELECTED.filter(x => x !== id) : [...SELECTED, id];
     store.set(K.sel, SELECTED); render(); return;
   }
 

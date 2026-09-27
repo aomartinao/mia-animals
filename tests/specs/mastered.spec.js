@@ -86,3 +86,18 @@ test('"Tohle znám" is offered only on the first appearance of an animal in a le
     if (it.type !== 'intro') await page.keyboard.press('Enter');
   }
 });
+
+test('home: with all groups selected, tapping one keeps just that group; later taps add and remove', async ({ page }) => {
+  await openApp(page);
+  const all = await page.evaluate(() => GROUPS.length);
+  expect(await page.evaluate(() => SELECTED.length)).toBe(all);
+  await page.click('[data-group=par]');
+  expect(await page.evaluate(() => SELECTED)).toEqual(['par']);
+  const other = await page.evaluate(() => GROUPS.find(g => g.id !== 'par').id);
+  await page.click(`[data-group=${other}]`);
+  expect(await page.evaluate(() => SELECTED.sort())).toEqual(['par', other].sort());
+  await page.click('[data-group=par]');
+  expect(await page.evaluate(() => SELECTED)).toEqual([other]);
+  await page.click('[data-act=toggleAll]');
+  expect(await page.evaluate(() => SELECTED.length)).toBe(all);
+});
