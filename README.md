@@ -25,7 +25,12 @@ python3 -m http.server 8000
 Then open http://localhost:8000.
 
 ## Deploy
-Any static host works: GitHub Pages (Settings → Pages → deploy from `main`, root), Vercel, or Netlify.
+Live at https://mia-animals.web.app (Firebase Hosting). Every push to `main` that passes the tests is deployed
+by `.github/workflows/tests.yml` together with `firestore.rules` (needs the `FIREBASE_SERVICE_ACCOUNT` secret).
+The old GitHub Pages address forwards players (with their progress) once `moved.json` is live on the new one.
+
+Google sign-in uses the OAuth code flow over the Auth REST API; `https://mia-animals.web.app/` must be an
+authorized redirect URI of the project's OAuth web client.
 
 ## Tests
 Every pull request runs the checks in `.github/workflows/tests.yml`:

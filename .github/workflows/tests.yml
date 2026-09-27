@@ -43,3 +43,31 @@ jobs:
           name: playwright-results
           path: tests/test-results/
           retention-days: 7
+
+  # Every push to main goes live on Firebase Hosting (https://mia-animals.web.app) together with
+  # the Firestore rules. Needs the FIREBASE_SERVICE_ACCOUNT secret (service account key JSON).
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.SA != ''
+
+      - uses: actions/setup-node@v4
+        if: env.SA != ''
+        with:
+          node-version: 22
+
+      - name: Deploy hosting + Firestore rules
+        if: env.SA != ''
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx -y firebase-tools@15 deploy --only hosting,firestore:rules --project mia-animals --non-interactive
+
+      - name: No deploy key yet
+        if: env.SA == ''
+        run: echo "::warning::FIREBASE_SERVICE_ACCOUNT secret is not set, skipping deploy"

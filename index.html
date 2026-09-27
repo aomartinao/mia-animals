@@ -504,7 +504,22 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v6', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1', hashes: 'zv-hashes-v1', dupes: 'zv-dupes-v1' };
+const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v6', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1', hashes: 'zv-hashes-v1', dupes: 'zv-dupes-v1', account: 'zv-account-v1', glogin: 'zv-glogin-v1' };
+
+// Moving from GitHub Pages to Firebase Hosting: the old site sends everything along in the URL fragment.
+const NEW_HOME = 'https://mia-animals.web.app/';
+const MOVE_KEYS = ['prog', 'stats', 'sel', 'bad', 'sound', 'hide', 'focus', 'whole', 'auth', 'player', 'duels', 'onboarded'];
+(function importMoved() {
+  const m = location.hash.match(/^#import=(.*)$/);
+  if (!m) return;
+  history.replaceState(null, '', location.href.split('#')[0]);
+  try {
+    const d = JSON.parse(decodeURIComponent(m[1]));
+    const mine = store.get(K.stats, null);
+    if (mine && (mine.xp || 0) >= ((d.stats || {}).xp || 0)) return;   // this device already has more
+    for (const k of MOVE_KEYS) if (d[k] !== undefined) store.set(K[k], d[k]);
+  } catch (e) { /* ignore */ }
+})();
 
 let PROGRESS = store.get(K.prog, {});   // id -> { b: box 0..5, s: seen, c: correct, w: wrong, t: last time }
 let STATS = store.get(K.stats, { xp: 0, streak: 0, lastDay: null, lessons: 0 });
@@ -686,6 +701,7 @@ const ALL_DONE_MSG = 'Všechna zvířata ve vybraných skupinách umíš na 100 
 function setMastered(a, on) {
   const p = prog(a);
   if (on) { p.done = 1; p.b = 5; } else { p.done = 0; p.b = Math.min(p.b, MASTER - 1); }
+  p.t = Date.now();
   saveProgress(); scheduleSync();
 }
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
@@ -980,6 +996,9 @@ const SCREENS = {
     </div>
 
     <div class="foot">
+      ${!GOOGLE_OK ? '' : ACCOUNT ? `<div class="muted small account" style="font-weight:700;margin-bottom:8px">☁️ Pokrok se ukládá do účtu ${esc(ACCOUNT.email)}
+        <button class="btn ghost small" data-act="logout">Odhlásit</button></div>`
+      : `<button class="btn wide" data-act="google" style="margin-bottom:10px">☁️ Přihlásit přes Google <span class="small muted">· pokrok na mobilu i počítači</span></button>`}
       <button class="btn wide" data-act="share" style="margin-bottom:10px">📤 Pošli apku kamarádům</button>
       <button class="btn ghost small" data-act="sound">${SOUND ? '🔊 Zvuk zapnutý' : '🔇 Zvuk vypnutý'}</button>
       <button class="btn ghost small" data-act="reset">Smazat pokrok</button>
@@ -1365,8 +1384,8 @@ async function fbToken() {
 const fsVal = v => typeof v === 'string' ? { stringValue: v } : Number.isInteger(v) ? { integerValue: String(v) } : { timestampValue: v.toISOString() };
 const fsDoc = obj => ({ fields: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, fsVal(v)])) });
 const fsRead = f => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, v.stringValue ?? (v.integerValue != null ? +v.integerValue : v.timestampValue)]));
-async function fsCall(method, path, body) {
-  const a = await fbToken();
+async function fsCall(method, path, body, auth) {
+  const a = auth || await fbToken();
   const r = await fetch(path.startsWith(':') ? FS + path : `${FS}/${path}`, {
     method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + a.id },
     body: body ? JSON.stringify(body) : undefined,
@@ -1376,7 +1395,7 @@ async function fsCall(method, path, body) {
 }
 
 let syncTimer = null;
-function scheduleSync() { if (!PLAYER) return; clearTimeout(syncTimer); syncTimer = setTimeout(() => syncPlayer().catch(() => {}), 1500); }
+function scheduleSync() { if (!PLAYER && !ACCOUNT) return; clearTimeout(syncTimer); syncTimer = setTimeout(() => syncPlayer().catch(() => {}), 1500); }
 // Nicknames are unique: names/{key} belongs to one uid. The key mirrors nameKey() in firestore.rules.
 const NAME_FOLD = { á: 'a', à: 'a', â: 'a', ä: 'a', č: 'c', ď: 'd', é: 'e', ě: 'e', ë: 'e', í: 'i', ï: 'i', ň: 'n', ó: 'o', ö: 'o', ô: 'o', ř: 'r', š: 's', ť: 't', ú: 'u', ů: 'u', ü: 'u', ý: 'y', ž: 'z' };
 const nameKey = n => n.toLowerCase().replace(/[áàâäčďéěëíïňóöôřšťúůüýž]/g, c => NAME_FOLD[c]).replace(/[^a-z0-9]/g, '');
@@ -1402,6 +1421,7 @@ async function ensureName() {
   PLAYER.uid = a.uid; store.set(K.player, PLAYER);
 }
 async function syncPlayer() {
+  if (ACCOUNT) await cloudSync();
   if (!PLAYER) return;
   await ensureName();
   const a = await fbToken();
@@ -1411,6 +1431,117 @@ async function syncPlayer() {
     fsCall('PATCH', `weeks/${isoWeek()}/players/${a.uid}`, fsDoc({ name: PLAYER.name, xp: Math.min(weekXp(), WEEK_CAP), updated: now })),
   ]);
 }
+/* ------------------------------------------------------------------ *
+ *  Google account: the same progress on phone and computer.           *
+ *  Plain OAuth code flow over the Auth REST API (no SDK, no popup),   *
+ *  so it also works in an iPhone home-screen app.                     *
+ * ------------------------------------------------------------------ */
+const GOOGLE_OK = !/github\.io$/.test(location.hostname);   // the redirect URL is registered for the Firebase domain only
+let ACCOUNT = store.get(K.account, null);                  // { email } once signed in with Google
+async function idt(op, body) {
+  const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:${op}?key=${FB.apiKey}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && j.error.message) || `${op} ${r.status}`);
+  return j;
+}
+async function googleLogin() {
+  try {
+    const back = location.origin + location.pathname.replace(/index\.html$/, '');   // must match the registered redirect URL
+    const j = await idt('createAuthUri', { providerId: 'google.com', continueUri: back, customParameter: { prompt: 'select_account' } });
+    store.set(K.glogin, { sid: j.sessionId, back });
+    location.assign(j.authUri);
+  } catch (e) { alert('Přihlášení se nepovedlo spustit. Zkontroluj internet.'); }
+}
+async function finishGoogleLogin() {
+  const pend = store.get(K.glogin, null), q = new URLSearchParams(location.search);
+  if (!pend || !(q.has('code') || q.has('error'))) return false;
+  store.del(K.glogin);
+  const requestUri = location.href;
+  history.replaceState(null, '', pend.back);
+  if (!q.has('code')) return false;                          // cancelled on the Google page
+  try {
+    const j = await idt('signInWithIdp', { requestUri, sessionId: pend.sid, returnSecureToken: true });
+    await switchAccount({ uid: j.localId, id: j.idToken, refresh: j.refreshToken, exp: Date.now() + (+j.expiresIn) * 1000 }, j.email || '');
+    store.set(K.onboarded, true);
+    return true;
+  } catch (e) { alert('Přihlášení přes Google se nepovedlo. Zkus to znovu.'); return false; }
+}
+const parseJson = (s, d) => { try { return JSON.parse(s); } catch (e) { return d; } };
+async function cloudGet(auth) {
+  try { return fsRead((await fsCall('GET', `users/${auth.uid}`, null, auth)).fields); }
+  catch (e) { if (/404/.test(e.message)) return null; throw e; }
+}
+// Per animal the most recently changed record wins; totals take the maximum.
+const dayNum = d => d ? +new Date(...d.split('-').map((v, i) => +v - (i === 1 ? 1 : 0))) : 0;
+function mergeCloud(c) {
+  const P = parseJson(c.prog, {}) || {}, T = parseJson(c.stats, null);
+  for (const [id, y] of Object.entries(P)) {
+    const x = PROGRESS[id];
+    if (!x || (y.t || 0) > (x.t || 0) || ((y.t || 0) === (x.t || 0) && (y.s || 0) > (x.s || 0))) PROGRESS[id] = y;
+  }
+  if (T) {
+    STATS.xp = Math.max(STATS.xp || 0, T.xp || 0);
+    STATS.lessons = Math.max(STATS.lessons || 0, T.lessons || 0);
+    if (dayNum(T.lastDay) > dayNum(STATS.lastDay)) { STATS.lastDay = T.lastDay; STATS.streak = T.streak; }
+    else if (T.lastDay === STATS.lastDay) STATS.streak = Math.max(STATS.streak || 0, T.streak || 0);
+    if (T.wk && (!STATS.wk || T.wk > STATS.wk)) { STATS.wk = T.wk; STATS.wxp = T.wxp; }
+    else if (T.wk === STATS.wk) STATS.wxp = Math.max(STATS.wxp || 0, T.wxp || 0);
+  }
+  saveProgress(); store.set(K.stats, STATS);
+}
+async function cloudSync(replace) {
+  const a = await fbToken();
+  if (!replace) { const c = await cloudGet(a); if (c) mergeCloud(c); }
+  await fsCall('PATCH', `users/${a.uid}`, fsDoc({ prog: JSON.stringify(PROGRESS), stats: JSON.stringify(STATS), ...(PLAYER ? { name: PLAYER.name } : {}), updated: new Date() }));
+}
+// Signing in on a device: take over the Google account's name (or bring this device's name along),
+// move the board entry from the device's anonymous account, then merge progress both ways.
+async function switchAccount(g, email) {
+  const old = store.get(K.auth, null);
+  const cloud = await cloudGet(g);
+  const name = (cloud && cloud.name) || (PLAYER && PLAYER.name) || null;
+  if (old && old.uid !== g.uid && PLAYER) {
+    await Promise.all([fsCall('DELETE', `players/${old.uid}`), fsCall('DELETE', `weeks/${isoWeek()}/players/${old.uid}`), releaseName(PLAYER.name)]).catch(() => {});
+  }
+  store.set(K.auth, g);
+  ACCOUNT = { email }; store.set(K.account, ACCOUNT);
+  PLAYER = name ? { name } : null;
+  if (PLAYER) store.set(K.player, PLAYER); else store.del(K.player);
+  if (cloud) mergeCloud(cloud);
+  await syncPlayer().catch(() => {});                          // a taken name is handled on the board
+}
+async function logout() {
+  if (!confirm('Odhlásit se? Pokrok zůstane uložený v Google účtu, z tohoto zařízení se smaže.')) return;
+  await cloudSync().catch(() => {});
+  for (const k of [K.auth, K.account, K.player, K.prog, K.stats, K.duels]) store.del(k);
+  location.replace(location.origin + location.pathname);
+}
+
+// Old address (GitHub Pages): once the new one is live, send the player there with everything.
+async function checkMoved() {
+  if (!/github\.io$/.test(location.hostname)) return false;
+  try { const r = await fetch(NEW_HOME + 'moved.json', { cache: 'no-store' }); if (!r.ok) return false; } catch (e) { return false; }
+  const d = {};
+  for (const k of MOVE_KEYS) { const v = store.get(K[k], undefined); if (v !== undefined) d[k] = v; }
+  const url = NEW_HOME + location.search + '#import=' + encodeURIComponent(JSON.stringify(d));
+  if (isStandalone()) { go('moved', { url }); return true; }
+  location.replace(url);
+  return true;
+}
+SCREENS.moved = () => `<div class="center" style="margin:auto 0;padding:10px 0">
+  <div class="big-emoji">🚚</div>
+  <h1>Appka se přestěhovala</h1>
+  <p style="font-weight:700">Nová adresa je <b>mia-animals.web.app</b>. Nově se tam můžeš přihlásit přes Google a mít stejný pokrok na mobilu i na počítači.</p>
+  <div class="lb" style="text-align:left;margin:16px 0">
+    <div class="lb-row"><span class="lb-rank">1</span><span>Ťukni na <b>Otevřít novou appku</b>, tvůj pokrok se přenese</span></div>
+    <div class="lb-row"><span class="lb-rank">2</span><span>Přihlas se tam přes <b>Google</b></span></div>
+    <div class="lb-row"><span class="lb-rank">3</span><span>Přidej si ji na plochu, přihlas se v ní znovu a tuhle starou ikonu smaž</span></div>
+  </div>
+  <a class="btn primary wide" style="display:block;text-decoration:none;box-sizing:border-box" href="${esc(S.url)}" target="_blank" rel="noopener">Otevřít novou appku</a>
+</div>`;
+
 async function fetchBoard(tab) {
   const [parent, field] = tab === 'week' ? [`weeks/${isoWeek()}`, 'xp'] : ['', 'known'];
   const rows = await fsCall('POST', `${parent}:runQuery`, {
@@ -1721,7 +1852,8 @@ SCREENS.onboard = function () {
         <div class="lb-row"><span style="font-size:24px">📝</span><span>Zkouška nanečisto se známkou</span></div>
         <div class="lb-row"><span style="font-size:24px">🏆</span><span>Žebříček a souboje s kamarády</span></div>
       </div>
-      <button class="btn primary wide" data-act="onbNext" autofocus>Začít</button>`;
+      <button class="btn primary wide" data-act="onbNext" autofocus>Začít</button>
+      ${GOOGLE_OK ? `<button class="btn ghost wide" data-act="google" style="margin-top:8px">Už ji používám jinde – přihlásit přes Google</button>` : ''}`;
   } else if (step === 'install') {
     const ios = (O.os || (isIOS ? 'ios' : 'android')) === 'ios';
     body = `<div class="big-emoji">📲</div>
@@ -1818,11 +1950,14 @@ $app.addEventListener('click', e => {
     case 'rename': S.B.rename = true; render(); break;
     case 'cancelRename': S.B.rename = false; render(); break;
     case 'leaveBoard': leaveBoard(); break;
+    case 'google': googleLogin(); break;
+    case 'logout': logout(); break;
     case 'sound': SOUND = !SOUND; store.set(K.sound, SOUND); render(); break;
     case 'reset':
       if (confirm('Opravdu smazat celý pokrok? Tohle nejde vrátit.')) {
         PROGRESS = {}; STATS = { xp: 0, streak: 0, lastDay: null, lessons: 0 };
-        store.del(K.prog); store.del(K.stats); scheduleSync(); render();
+        store.del(K.prog); store.del(K.stats); render();
+        if (ACCOUNT) cloudSync(true).catch(() => {}); else scheduleSync();
       }
       break;
     case 'quit':
@@ -1958,8 +2093,15 @@ document.addEventListener('keydown', e => {
 
 /* ------------------------------------------------------------------ */
 render();
-loadImages(false).then(() => {
+const moving = checkMoved();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && ACCOUNT) cloudSync().then(() => { if (S.screen === 'home') render(); }).catch(() => {});
+});
+loadImages(false).then(async () => {
+  if (await moving) return;
   setTimeout(() => dedupePhotos().catch(() => {}), 1500);
+  const loggedIn = await finishGoogleLogin();
+  if (ACCOUNT && !loggedIn) cloudSync().then(() => { if (S.screen === 'home') render(); }).catch(() => {});
   let duelId = new URLSearchParams(location.search).get('duel');
   if (!(duelId && /^[a-z0-9]{6,24}$/.test(duelId))) duelId = null;
   if (duelId) history.replaceState(null, '', appUrl());

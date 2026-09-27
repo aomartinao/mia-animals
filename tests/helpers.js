@@ -20,14 +20,32 @@ const FOLD = { á: 'a', à: 'a', â: 'a', ä: 'a', č: 'c', ď: 'd', é: 'e', ě
 export const nameKey = n => n.toLowerCase().replace(/[áàâäčďéěëíïňóöôřšťúůüýž]/g, c => FOLD[c]).replace(/[^a-z0-9]/g, '');
 
 export class FakeFirebase {
-  constructor() { this.db = new Map(); this.n = 0; }
+  constructor({ google = { uid: 'gmia', email: 'mia@skola.cz' } } = {}) { this.db = new Map(); this.n = 0; this.google = google; this.googleUids = new Set(); }
   async attach(context) {
     const FS = 'https://firestore.googleapis.com/v1/projects/mia-animals/databases/(default)/documents';
+    const tokens = uid => ({ localId: uid, idToken: 'tok-' + uid, refreshToken: 'ref-' + uid, expiresIn: '3600', user_id: uid, id_token: 'tok-' + uid, refresh_token: 'ref-' + uid, expires_in: '3600' });
     await context.route(/identitytoolkit|securetoken/, r => {
-      if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
-      const uid = 'uid' + (++this.n);
-      return r.fulfill({ headers: CORS, contentType: 'application/json',
-        body: JSON.stringify({ localId: uid, idToken: 'tok-' + uid, refreshToken: 'ref-' + uid, expiresIn: '3600', user_id: uid, id_token: 'tok-' + uid, refresh_token: 'ref-' + uid, expires_in: '3600' }) });
+      const req = r.request();
+      if (req.method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
+      const J = o => r.fulfill({ headers: CORS, contentType: 'application/json', body: JSON.stringify(o) });
+      const url = req.url(), body = req.postData() || '';
+      if (url.includes('accounts:createAuthUri')) {
+        const { continueUri, providerId } = JSON.parse(body);
+        return J({ providerId, sessionId: 'sess1', authUri: 'https://accounts.google.com/o/oauth2/auth?state=st1&redirect_uri=' + encodeURIComponent(continueUri) });
+      }
+      if (url.includes('accounts:signInWithIdp')) {
+        const { requestUri, sessionId } = JSON.parse(body);
+        if (sessionId !== 'sess1' || !/[?&]code=/.test(requestUri)) return r.fulfill({ status: 400, headers: CORS, contentType: 'application/json', body: '{"error":{"message":"INVALID_IDP_RESPONSE"}}' });
+        this.googleUids.add(this.google.uid);
+        return J({ ...tokens(this.google.uid), email: this.google.email });
+      }
+      if (url.includes('securetoken')) return J(tokens(decodeURIComponent(body).match(/refresh_token=ref-(\S+)/)[1]));
+      return J(tokens('uid' + (++this.n)));
+    });
+    // Google's consent page: straight back to the app with an auth code.
+    await context.route(/accounts\.google\.com/, r => {
+      const back = new URL(r.request().url()).searchParams.get('redirect_uri');
+      return r.fulfill({ status: 302, headers: { location: back + '?state=st1&code=c1&scope=email' } });
     });
     await context.route(/firestore\.googleapis\.com/, r => {
       const req = r.request(), m = req.method();
@@ -50,6 +68,7 @@ export class FakeFirebase {
       const key = p.replace(/^\//, '').split('?')[0];
       if (m === 'GET') return this.db.has(key) ? J(this.db.get(key)) : J({ error: 'not found' }, 404);
       const body = req.postData() ? JSON.parse(req.postData()) : null;
+      if (key.startsWith('users/') && m !== 'DELETE' && !this.googleUids.has(uid)) return J({ error: 'google only' }, 403);
       if (key.startsWith('names/')) {
         // Nickname registry: create only, owner may delete.
         const cur = this.db.get(key);
@@ -60,7 +79,7 @@ export class FakeFirebase {
       const owner = /^duels\/[^/]+$/.test(key) ? body && body.fields.by.stringValue : key.split('/').pop();
       if (owner !== uid) return J({ error: 'denied' }, 403);
       if (key.startsWith('duels/') && this.db.has(key)) return J({ error: 'create only' }, 403);
-      if (m === 'PATCH') {
+      if (m === 'PATCH' && !key.startsWith('users/')) {
         // Like the rules: the name written must belong to the writer.
         const n = body.fields.name || body.fields.byName;
         const nk = n && 'names/' + nameKey(n.stringValue);
