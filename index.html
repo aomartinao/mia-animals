@@ -47,7 +47,7 @@
   @keyframes drift { to { transform: translate(6%, 5%) rotate(8deg) scale(1.08); } }
   @media (prefers-reduced-motion: reduce) { body::before, .spin { animation: none; } }
   button { font: inherit; color: inherit; cursor: pointer; }
-  #app { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(28px + env(safe-area-inset-bottom)); min-height: 100dvh; display: flex; flex-direction: column; }
+  #app { max-width: 640px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom)); min-height: 100dvh; display: flex; flex-direction: column; }
   #app.enter > * { animation: rise .38s cubic-bezier(.2,.8,.2,1) both; }
   #app.enter > *:nth-child(2) { animation-delay: .04s; } #app.enter > *:nth-child(3) { animation-delay: .08s; }
   #app.enter > *:nth-child(4) { animation-delay: .12s; } #app.enter > *:nth-child(5) { animation-delay: .16s; }
@@ -223,9 +223,9 @@
   .dots i { width: 14px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); }
   .dots i.on { background: var(--green); box-shadow: 0 0 6px rgba(182,255,59,.6); }
   .toggle { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
-  .sticky-head { position: sticky; top: 0; z-index: 5; padding: 10px 16px; margin: -16px -16px 0;
+  .sticky-head { position: sticky; top: 0; z-index: 5; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; margin: calc(-16px - env(safe-area-inset-top)) -16px 0;
     background: rgba(9,9,15,.75); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-bottom: 1px solid var(--line); }
-  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom)); z-index: 50; }
   .modal { background: rgba(24,24,36,.92); border-radius: 28px; padding: 14px; width: 100%; max-width: 520px; max-height: 92dvh; overflow: auto; animation: pop .25s; }
 
   .flash .pic { cursor: pointer; }
