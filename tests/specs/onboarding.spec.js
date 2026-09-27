@@ -56,3 +56,13 @@ test('vulgar nicknames are refused, look-alike tricks included', async ({ contex
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => S.screen === 'home');
 });
+
+test('welcome offers two equal ways in: start without login, or Google', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await setupMocks(ctx, { onboarded: false });
+  const page = await ctx.newPage();
+  await openApp(page);
+  await expect(page.locator('.start-choices [data-act=onbNext]')).toContainText('Začít bez přihlášení');
+  await expect(page.locator('.start-choices [data-act=google]')).toContainText('Přihlásit přes Google');
+  await expect(page.locator('body')).not.toContainText('Už ji používám jinde');
+});
