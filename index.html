@@ -147,7 +147,7 @@
   .group .gi { font-size: 24px; line-height: 1; }
   .group .gtext { display: flex; flex-direction: column; min-width: 0; }
   @media (max-width: 379px) { .group { font-size: 13.5px; gap: 6px; padding-left: 8px; padding-right: 8px; } .group .gi { font-size: 21px; } }
-  .group .gname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .group .gname { line-height: 1.15; overflow-wrap: anywhere; }
   .group .gcount { font-size: 12px; color: var(--muted); font-weight: 700; margin-top: 2px; }
   .group .gbar { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--gc, var(--green)); box-shadow: 0 0 8px var(--gc, var(--green)); }
   .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -302,6 +302,32 @@
   .detail-actions { flex-wrap: nowrap; gap: 6px; margin: 0 0 20px; }
   .detail-nav { display: flex; gap: 8px; }
   .start-choices { display: grid; gap: 10px; }
+  /* Onboarding */
+  .onb-hero { position: relative; display: grid; place-items: center; margin: 8px 0 6px; }
+  .onb-hero::before { content: ''; position: absolute; width: 190px; height: 190px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,150,60,.35), rgba(169,139,255,.18) 55%, transparent 72%); filter: blur(6px); }
+  .onb-fox { position: relative; font-size: 104px; line-height: 1; animation: pop .5s cubic-bezier(.2,1.6,.4,1), bob 2.4s ease-in-out .5s infinite alternate;
+    filter: drop-shadow(0 12px 24px rgba(0,0,0,.45)); }
+  .onb-title { font-size: 40px; letter-spacing: -.02em; margin: 6px 0 4px;
+    background: linear-gradient(90deg, var(--green), var(--blue) 55%, var(--purple)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .onb-lead { font-weight: 700; font-size: 17px; line-height: 1.4; color: var(--ink); opacity: .9; margin: 6px auto 0; max-width: 34ch; }
+  .onb-note { margin-top: 14px; font-weight: 700; }
+  .feat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 22px 0 24px; }
+  .feat > div { display: grid; justify-items: center; gap: 8px; padding: 14px 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 800; line-height: 1.2;
+    background: var(--card); border: 1px solid var(--line); }
+  .fi { width: 50px; height: 50px; border-radius: 16px; display: grid; place-items: center; font-size: 26px; }
+  .fi-g { background: linear-gradient(160deg, rgba(182,255,59,.35), rgba(182,255,59,.08)); box-shadow: 0 6px 18px rgba(182,255,59,.18); }
+  .fi-p { background: linear-gradient(160deg, rgba(169,139,255,.4), rgba(169,139,255,.08)); box-shadow: 0 6px 18px rgba(169,139,255,.2); }
+  .fi-o { background: linear-gradient(160deg, rgba(255,180,60,.4), rgba(255,180,60,.08)); box-shadow: 0 6px 18px rgba(255,180,60,.2); }
+  .lang-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0 4px; }
+  .lang-pick { display: grid; justify-items: center; gap: 6px; padding: 20px 10px 18px; border-radius: 24px; font: inherit; color: var(--ink); cursor: pointer;
+    background: linear-gradient(170deg, var(--card-2), var(--card)); border: 1px solid var(--line); box-shadow: 0 5px 0 rgba(0,0,0,.45);
+    transition: transform .08s, box-shadow .08s, border-color .15s; }
+  .lang-pick:hover { border-color: var(--green); }
+  .lang-pick:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,.45); }
+  .lang-pick .lp-flag { font-size: 44px; line-height: 1; }
+  .lang-pick b { font-size: 17px; }
+  .lang-pick .lp-ex { font-size: 13px; font-weight: 700; color: var(--muted); font-style: italic; }
   .start-choices .btn > span.small { display: block; font-weight: 700; opacity: .8; margin-top: 3px; }
   /* Google's standard light sign-in button: white, grey text, the four-colour G */
   .google-btn { background: #fff; color: #1f1f1f; border: 1px solid #dadce0; --edge: rgba(0,0,0,.25); font-family: Roboto, Arial, sans-serif; }
@@ -335,9 +361,13 @@
 
 /* Language: the whole app is either Czech or English (UI and animal names). */
 const LANG = (() => {
-  try { const v = JSON.parse(localStorage.getItem('zv-lang-v1')); if (v === 'cs' || v === 'en') return v; } catch (e) { /* ignore */ }
-  return /^(cs|sk)\b/i.test(navigator.language || '') ? 'cs' : 'en';
+  try {
+    const v = JSON.parse(localStorage.getItem('zv-lang-v1')); if (v === 'cs' || v === 'en') return v;
+    if (localStorage.getItem('zv-onboarded-v1')) return 'cs';          // players from before English existed
+  } catch (e) { /* ignore */ }
+  return /^(cs|sk)\b/i.test(navigator.language || '') ? 'cs' : 'en';   // only for the first screen; the player then chooses
 })();
+const LANG_CHOSEN = (() => { try { return !!localStorage.getItem('zv-lang-v1'); } catch (e) { return false; } })();
 const EN = LANG === 'en';
 const t = (cs, en) => EN ? en : cs;
 document.documentElement.lang = LANG;
@@ -681,7 +711,9 @@ const store = {
   set(key, value) { if (store.frozen) return; try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
-const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v6', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1', hashes: 'zv-hashes-v1', dupes: 'zv-dupes-v1', account: 'zv-account-v1', glogin: 'zv-glogin-v1' };
+// Each language has its own progress: knowing Czech names and knowing English names are different things.
+const PROG_KEY = { cs: 'zv-progress-v1', en: 'zv-progress-en-v1' };
+const K = { prog: PROG_KEY[LANG], stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v6', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1', hashes: 'zv-hashes-v1', dupes: 'zv-dupes-v1', account: 'zv-account-v1', glogin: 'zv-glogin-v1' };
 
 // Moving from GitHub Pages to Firebase Hosting: the old site sends everything along in the URL fragment.
 const NEW_HOME = 'https://mia-animals.web.app/';
@@ -1192,7 +1224,7 @@ const SCREENS = {
       <button class="btn wide" data-act="share" style="margin-bottom:10px">${t('📤 Pošli apku kamarádům', '📤 Send the app to friends')}</button>
       <button class="btn wide" data-act="feedback" style="margin-bottom:10px">${t('💬 Nápad nebo chyba? Napiš Gandalfovi', '💬 Idea or bug? Write to Gandalf')}</button>
       <button class="btn ghost small" data-act="sound">${SOUND ? '🔊 ' + t('Zvuk zapnutý', 'Sound on') : '🔇 ' + t('Zvuk vypnutý', 'Sound off')}</button>
-      <button class="btn ghost small" data-act="lang">${EN ? '🇨🇿 Česky' : '🇬🇧 English'}</button>
+      <button class="btn ghost small" data-act="lang">${EN ? '🇨🇿 Učit se česká jména' : '🇬🇧 Learn English names'}</button>
       <button class="btn ghost small" data-act="reset">${t('Smazat pokrok', 'Reset progress')}</button>
       ${noImg.length && IMG_STATE === 'ok' ? `<div class="muted small" style="margin-top:6px">${t('Bez obrázku (nebudou v otázkách)', 'No photo (left out of questions)')}: ${noImg.map(a => esc(a.name)).join(', ')}</div>` : ''}
       <div class="credit">${t('Fotky: Wikipedie / Wikimedia Commons', 'Photos: Wikipedia / Wikimedia Commons')}</div>
@@ -1550,7 +1582,9 @@ function addXp(n) {
   store.set(K.stats, STATS);
   scheduleSync();
 }
-const knownCount = () => ANIMALS.filter(a => prog(a).b >= MASTER).length;
+const knownIn = P => ANIMALS.filter(a => (P[a.id] || {}).b >= MASTER).length;
+// The leaderboard shows the better of the two languages, so switching doesn't make a player drop.
+const knownCount = () => Math.max(knownIn(PROGRESS), knownIn(store.get(PROG_KEY[EN ? 'cs' : 'en'], {})));
 
 async function fbToken() {
   let a = store.get(K.auth, null);
@@ -1671,12 +1705,18 @@ async function cloudGet(auth) {
 }
 // Per animal the most recently changed record wins; totals take the maximum.
 const dayNum = d => d ? +new Date(...d.split('-').map((v, i) => +v - (i === 1 ? 1 : 0))) : 0;
-function mergeCloud(c) {
-  const P = parseJson(c.prog, {}) || {}, T = parseJson(c.stats, null);
-  for (const [id, y] of Object.entries(P)) {
-    const x = PROGRESS[id];
-    if (!x || (y.t || 0) > (x.t || 0) || ((y.t || 0) === (x.t || 0) && (y.s || 0) > (x.s || 0))) PROGRESS[id] = y;
+const CLOUD_FIELD = { cs: 'prog', en: 'progEn' };
+function mergeProg(into, P) {
+  for (const [id, y] of Object.entries(P || {})) {
+    const x = into[id];
+    if (!x || (y.t || 0) > (x.t || 0) || ((y.t || 0) === (x.t || 0) && (y.s || 0) > (x.s || 0))) into[id] = y;
   }
+  return into;
+}
+function mergeCloud(c) {
+  const T = parseJson(c.stats, null), other = EN ? 'cs' : 'en';
+  mergeProg(PROGRESS, parseJson(c[CLOUD_FIELD[LANG]], {}));
+  store.set(PROG_KEY[other], mergeProg(store.get(PROG_KEY[other], {}), parseJson(c[CLOUD_FIELD[other]], {})));
   if (T) {
     STATS.xp = Math.max(STATS.xp || 0, T.xp || 0);
     STATS.lessons = Math.max(STATS.lessons || 0, T.lessons || 0);
@@ -1694,7 +1734,8 @@ async function cloudSync(replace) {
     if (c) mergeCloud(c);
     if (c && c.name && !PLAYER) { PLAYER = { name: c.name }; store.set(K.player, PLAYER); }   // nickname set on another device
   }
-  await fsCall('PATCH', `users/${a.uid}`, fsDoc({ prog: JSON.stringify(PROGRESS), stats: JSON.stringify(STATS), ...(PLAYER ? { name: PLAYER.name } : {}), updated: new Date() }));
+  const progOf = l => JSON.stringify(l === LANG ? PROGRESS : store.get(PROG_KEY[l], {}));
+  await fsCall('PATCH', `users/${a.uid}`, fsDoc({ prog: progOf('cs'), progEn: progOf('en'), stats: JSON.stringify(STATS), ...(PLAYER ? { name: PLAYER.name } : {}), updated: new Date() }));
 }
 // Signing in on a device: take over the Google account's name (or bring this device's name along),
 // move the board entry from the device's anonymous account, then merge progress both ways.
@@ -1717,7 +1758,7 @@ async function logout() {
   clearTimeout(syncTimer);
   await cloudSync().catch(() => {});
   store.frozen = true;                                         // a sync still in flight must not write stats back
-  for (const k of [K.auth, K.account, K.player, K.prog, K.stats, K.duels]) store.del(k);
+  for (const k of [K.auth, K.account, K.player, PROG_KEY.cs, PROG_KEY.en, K.stats, K.duels]) store.del(k);
   location.replace(location.origin + location.pathname);
 }
 
@@ -2055,7 +2096,7 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); instal
 window.addEventListener('appinstalled', () => { installPrompt = null; if (S.screen === 'onboard' && S.O.steps[S.O.i] === 'install') onboardNext(); });
 
 function startOnboarding(after) {
-  const steps = ['welcome'];
+  const steps = LANG_CHOSEN ? ['welcome'] : ['lang', 'welcome'];
   if (!isStandalone() && (isIOS || isAndroid)) steps.push('install');
   if (!PLAYER) steps.push('nick');
   go('onboard', { O: { steps, i: 0, after } });
@@ -2083,14 +2124,24 @@ SCREENS.onboard = function () {
   const dots = `<div style="display:flex;gap:6px;justify-content:center;margin:4px 0 18px">${O.steps.map((_, i) =>
     `<i style="width:${i === O.i ? 22 : 8}px;height:8px;border-radius:4px;background:${i <= O.i ? 'var(--green)' : 'var(--line)'}"></i>`).join('')}</div>`;
   let body = '';
-  if (step === 'welcome') {
-    body = `<div class="big-emoji">🦊</div>
-      <h1>${t('Ahoj!', 'Hi!')}</h1>
-      <p style="font-weight:700;font-size:17px">${EN ? `Learn to recognise <b>all ${ANIMALS.length} vertebrates</b> from the school list by their photos, with their full names.` : `Tady se naučíš poznávat <b>všech ${ANIMALS.length} obratlovců</b> z poznávačky podle fotek i s celými jmény.`}</p>
-      <div class="lb" style="text-align:left;margin:18px 0">
-        <div class="lb-row"><span style="font-size:24px">🎯</span><span>${t('Krátké lekce jako v Duolingu', 'Short lessons like Duolingo')}</span></div>
-        <div class="lb-row"><span style="font-size:24px">📝</span><span>${t('Zkouška nanečisto se známkou', 'A practice test with a grade')}</span></div>
-        <div class="lb-row"><span style="font-size:24px">🏆</span><span>${t('Žebříček a souboje s kamarády', 'Leaderboard and duels with friends')}</span></div>
+  if (step === 'lang') {
+    // Shown in the device language; the choice decides the names she learns (and the whole app's language).
+    body = `<div class="onb-hero"><div class="onb-fox">🦊</div></div>
+      <h1 class="onb-title">${t('Ahoj!', 'Hi!')}</h1>
+      <p class="onb-lead">${t('Jaká jména zvířat se chceš učit?', 'Which animal names do you want to learn?')}</p>
+      <div class="lang-picks">
+        <button class="lang-pick" data-act="pickLang" data-lang="cs"><span class="lp-flag">🇨🇿</span><b>Česká jména</b><span class="lp-ex">kapr obecný</span></button>
+        <button class="lang-pick" data-act="pickLang" data-lang="en"><span class="lp-flag">🇬🇧</span><b>English names</b><span class="lp-ex">common carp</span></button>
+      </div>
+      <p class="muted small onb-note">${t('Každý jazyk má vlastní pokrok. Přepnout jde kdykoli dole na hlavní obrazovce.', 'Each language keeps its own progress. You can switch any time at the bottom of the home screen.')}</p>`;
+  } else if (step === 'welcome') {
+    body = `<div class="onb-hero"><div class="onb-fox">🦊</div></div>
+      <h1 class="onb-title">${t('Poznávačka', 'Animal Quiz')}</h1>
+      <p class="onb-lead">${EN ? `Learn to recognise <b>all ${ANIMALS.length} vertebrates</b> from the school list by their photos, with their full names.` : `Nauč se poznávat <b>všech ${ANIMALS.length} obratlovců</b> z poznávačky podle fotek i s celými jmény.`}</p>
+      <div class="feat">
+        <div><span class="fi fi-g">🎯</span>${t('Krátké lekce', 'Short lessons')}</div>
+        <div><span class="fi fi-p">📝</span>${t('Zkouška se známkou', 'Test with a grade')}</div>
+        <div><span class="fi fi-o">🏆</span>${t('Souboje s kamarády', 'Duels with friends')}</div>
       </div>
       ${GOOGLE_OK ? `<div class="start-choices">
         <button class="btn primary wide" data-act="onbNext">▶ ${t('Začít bez přihlášení', 'Start without signing in')}<span class="small">${t('Pokrok a přezdívka se uloží jen v tomhle zařízení', 'Progress and nickname stay on this device only')}</span></button>
@@ -2195,6 +2246,10 @@ $app.addEventListener('click', e => {
     case 'cancelRename': S.B.rename = false; render(); break;
     case 'leaveBoard': leaveBoard(); break;
     case 'google': googleLogin(); break;
+    case 'pickLang':
+      try { localStorage.setItem('zv-lang-v1', JSON.stringify(actEl.dataset.lang)); } catch (e) { /* ignore */ }
+      if (actEl.dataset.lang === LANG) onboardNext(); else location.reload();   // reload restarts onboarding in that language
+      break;
     case 'lang': try { localStorage.setItem('zv-lang-v1', JSON.stringify(EN ? 'cs' : 'en')); } catch (e) { /* ignore */ } location.reload(); break;
     case 'feedback': go('feedback', { F: {} }); break;
     case 'logout': logout(); break;
