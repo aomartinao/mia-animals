@@ -27,7 +27,7 @@ Then open http://localhost:8000.
 ## Deploy
 Live at https://mia-animals.web.app (Firebase Hosting). Every push to `main` that passes the tests is deployed
 by `.github/workflows/tests.yml` together with `firestore.rules` (needs the `FIREBASE_SERVICE_ACCOUNT` secret).
-The old GitHub Pages address forwards players (with their progress) once `moved.json` is live on the new one.
+The old GitHub Pages address forwards players (with their progress) once `moved.json` on the new site says `{"moved": true}`.
 
 Google sign-in uses the OAuth code flow over the Auth REST API; `https://mia-animals.web.app/` must be an
 authorized redirect URI of the project's OAuth web client.
