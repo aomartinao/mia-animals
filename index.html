@@ -552,13 +552,15 @@ async function loadImages(force) {
   }
 }
 // Wikipedia sometimes leads with a range map or globe instead of a photo
-const MAP_RE = /(^|[^a-z])(map|mapa|karte|range|distribution|distrib|rozsireni|areal|verbreitung|locator|location|globe|world|earth|orthographic)([^a-z]|$)|\.svg|verbreitung|karte|location|seawifs|biosphere|global|hemisphere|distribution|rozsireni/i;
+const MAP_RE = /(^|[^a-z])(map|mapa|karte|range|distribution|distrib|rozsireni|areal|verbreitung|locator|location|globe|world|earth|orthographic)([^a-z]|$)|\.svg|verbreitung|karte|location|distmap|seawifs|biosphere|global|hemisphere|distribution|rozsireni/i;
 // Photos checked by hand and found wrong (file names on Wikimedia Commons)
 const BLOCKED_FILES = new Set([
   'Anglerfish_Range_Map.svg',        // ďas mořský: range map
   'Clupeaharengusdistkils.jpg',      // sleď obecný: distribution map
   'LocationSolomonIslands.png',      // scink šalomounský: locator map
   'Human.svg',                       // člověk rozumný: drawing
+  'Sphyrna_zygaena_distmap.png',     // kladivoun obecný: distribution map
+  'Herringjuvenilekils.jpg',         // sleď obecný: reported as wrong
 ]);
 const isMapImage = u => BLOCKED_FILES.has(fileKey(u)) || MAP_RE.test(fileKey(u).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/_/g, ' '));
 const imgsOf = a => (IMAGES[a.id] || []).filter(u => !BAD.has(u) && !isMapImage(u) && !DUPES.has(fileKey(u)));
