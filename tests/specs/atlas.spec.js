@@ -47,7 +47,7 @@ test('detail: full screen, swipe photos with dots, hide the current photo, close
   await expect(page.locator('.cdots i').nth(1)).toHaveClass(/on/);
   await page.click('[data-act=badImg]');
   await expect(page.locator('.slide')).toHaveCount(slides - 1);
-  await page.click('.detail-close button');
+  await page.click('.detail-close [data-act=closeModal]');
   expect(await page.evaluate(() => S.open)).toBeNull();
 });
 
@@ -59,13 +59,13 @@ test('easter egg: triple tap or long press on the chimp, resets on reopen', asyn
   const box = await page.locator('.slide').first().boundingBox();
   for (let i = 0; i < 3; i++) await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
   await expect(name).toContainText('Mia, la mia scimmia');
-  await page.click('.detail-close button');
+  await page.click('.detail-close [data-act=closeModal]');
   await page.click('[data-open="šimpanz učenlivý"]');
   await expect(name).toContainText('šimpanz učenlivý');
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down(); await page.waitForTimeout(700); await page.mouse.up();
   await expect(name).toContainText('Mia, la mia scimmia');
-  await page.click('.detail-close button');
+  await page.click('.detail-close [data-act=closeModal]');
   await page.click('[data-open="kapr obecný"]');
   const kbox = await page.locator('.slide').first().boundingBox();
   for (let i = 0; i < 3; i++) await page.touchscreen.tap(kbox.x + kbox.width / 2, kbox.y + kbox.height / 2);
@@ -90,9 +90,43 @@ for (const vp of [{ width: 390, height: 844 }, { width: 375, height: 667 }]) {
     await openApp(page);
     await page.click('[data-act=atlas]');
     await page.click('[data-open="žralok bílý"]');
-    const box = await page.locator('.detail-close button').boundingBox();
+    const box = await page.locator('.detail-close [data-act=closeModal]').boundingBox();
     expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
-    await page.click('.detail-close button');
+    await page.click('.detail-close [data-act=closeModal]');
     expect(await page.evaluate(() => S.open)).toBeNull();
   });
 }
+
+for (const width of [340, 390]) {
+  test(`detail: the three actions fit on one row (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await openApp(page);
+    await page.click('[data-act=atlas]');
+    await page.click('[data-open="kapr obecný"]');
+    const boxes = await page.$$eval('.detail-actions > *', els => els.map(e => e.getBoundingClientRect()).map(r => ({ top: Math.round(r.top), right: r.right })));
+    expect(boxes.length).toBe(3);
+    expect(new Set(boxes.map(b => b.top)).size).toBe(1);
+    for (const b of boxes) expect(b.right).toBeLessThanOrEqual(width);
+  });
+}
+
+test('detail: actions and Zavřít sit at the bottom edge; ‹ › browse animals (within search)', async ({ page }) => {
+  await openApp(page);
+  await page.click('[data-act=atlas]');
+  await page.click('[data-open="kapr obecný"]');
+  const vh = page.viewportSize().height;
+  const bar = await page.locator('.detail-close').boundingBox();
+  expect(Math.round(bar.y + bar.height)).toBeGreaterThanOrEqual(vh - 2);   // pinned to the bottom
+  await page.click('[data-act=nextAnimal]');
+  await expect(page.locator('.detail .intro-name')).toContainText('lín obecný');
+  await page.click('[data-act=prevAnimal]');
+  await page.click('[data-act=prevAnimal]');
+  await expect(page.locator('.detail .intro-name')).toContainText('chiméra podivná');
+  await page.click('.detail-close [data-act=closeModal]');
+  await page.fill('[data-search]', 'ropucha');
+  await page.click('[data-open="ropucha obecná"]');
+  await expect(page.locator('[data-act=prevAnimal]')).toBeDisabled();
+  await page.click('[data-act=nextAnimal]');
+  await expect(page.locator('.detail .intro-name')).toContainText('ropucha zelená');
+  await expect(page.locator('[data-act=nextAnimal]')).toBeDisabled();
+});
