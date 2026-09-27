@@ -35,7 +35,7 @@ export class FakeFirebase {
       }
       if (url.includes('accounts:signInWithIdp')) {
         const { requestUri, sessionId } = JSON.parse(body);
-        if (sessionId !== 'sess1' || !/[?&]code=/.test(requestUri)) return r.fulfill({ status: 400, headers: CORS, contentType: 'application/json', body: '{"error":{"message":"INVALID_IDP_RESPONSE"}}' });
+        if (sessionId !== 'sess1' || !/[?&#](code|id_token)=/.test(requestUri)) return r.fulfill({ status: 400, headers: CORS, contentType: 'application/json', body: '{"error":{"message":"INVALID_IDP_RESPONSE"}}' });
         this.googleUids.add(this.google.uid);
         return J({ ...tokens(this.google.uid), email: this.google.email });
       }
@@ -45,7 +45,8 @@ export class FakeFirebase {
     // Google's consent page: straight back to the app with an auth code.
     await context.route(/accounts\.google\.com/, r => {
       const back = new URL(r.request().url()).searchParams.get('redirect_uri');
-      return r.fulfill({ status: 302, headers: { location: back + '?state=st1&code=c1&scope=email' } });
+      // Like the real flow Firebase starts (response_type=id_token), the answer comes back in the fragment.
+      return r.fulfill({ status: 302, headers: { location: back + '#state=st1&id_token=gid1&authuser=0' } });
     });
     await context.route(/firestore\.googleapis\.com/, r => {
       const req = r.request(), m = req.method();
