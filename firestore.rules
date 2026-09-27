@@ -57,6 +57,18 @@ service cloud.firestore {
         && request.resource.data.updated is timestamp;
     }
 
+    // Ideas and bug reports from the app. Anyone signed in can send; nobody can change them.
+    match /feedback/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['text', 'name', 'ctx', 'uid', 'at'])
+        && request.resource.data.text is string && request.resource.data.text.size() >= 3 && request.resource.data.text.size() <= 1000
+        && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 16))
+        && request.resource.data.ctx is string && request.resource.data.ctx.size() <= 100
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.at is timestamp;
+    }
+
     // All-time: animals known + total points
     match /players/{uid} {
       allow read: if true;
