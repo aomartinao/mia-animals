@@ -68,6 +68,11 @@ export class FakeFirebase {
       const key = p.replace(/^\//, '').split('?')[0];
       if (m === 'GET') return this.db.has(key) ? J(this.db.get(key)) : J({ error: 'not found' }, 404);
       const body = req.postData() ? JSON.parse(req.postData()) : null;
+      if (key === 'feedback' && m === 'POST') {
+        const f = body.fields;
+        if (f.uid.stringValue !== uid || f.text.stringValue.length < 3) return J({ error: 'denied' }, 403);
+        this.db.set('feedback/f' + (++this.n), body); return J(body);
+      }
       if (key.startsWith('users/') && m !== 'DELETE' && !this.googleUids.has(uid)) return J({ error: 'google only' }, 403);
       if (key.startsWith('names/')) {
         // Nickname registry: create only, owner may delete.

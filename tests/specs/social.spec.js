@@ -105,3 +105,18 @@ test('duel: same questions for the friend, one attempt, ranking by score then ti
   await tom.goto('/?duel=doesnotexist1');
   await expect(tom.locator('.warn')).toContainText('neexistuje');
 });
+
+test('feedback: kids send an idea from home', async ({ browser }) => {
+  const fb = new FakeFirebase();
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await setupMocks(ctx, { firebase: fb });
+  const page = await ctx.newPage();
+  await openApp(page);
+  await page.click('[data-act=feedback]');
+  await page.fill('textarea[name=text]', 'Přidejte prosím zvuky zvířat!');
+  await page.click('button[type=submit]');
+  await expect(page.locator('.hero')).toContainText('Díky');
+  const docs = [...fb.db].filter(([k]) => k.startsWith('feedback/')).map(([, v]) => v.fields);
+  expect(docs.map(f => f.text.stringValue)).toEqual(['Přidejte prosím zvuky zvířat!']);
+  expect(docs[0].ctx.stringValue).toContain('localhost');
+});
