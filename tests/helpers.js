@@ -167,3 +167,16 @@ export function trackErrors(page) {
   page.on('pageerror', e => errors.push(e.message));
   return errors;
 }
+
+/** Wait until finite CSS animations (screen/detail slide-ins) have finished, so layout can be measured. */
+export async function settle(page) {
+  await page.evaluate(() => Promise.all(document.getAnimations()
+    .filter(a => a.effect && a.effect.getComputedTiming().iterations !== Infinity)
+    .map(a => a.finished.catch(() => {}))));
+}
+/** Open an animal's Atlas detail and wait for it to finish sliding in. */
+export async function openDetail(page, name) {
+  await page.click(`[data-open="${name}"]`);
+  await page.waitForSelector('.detail');
+  await settle(page);
+}
