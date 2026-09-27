@@ -294,8 +294,13 @@
     background: linear-gradient(to top, var(--bg) 70%, transparent); }
   .detail-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
   .detail-actions a { text-decoration: none; }
-  .detail-actions { flex-wrap: nowrap; gap: 6px; margin: 0 0 10px; }
+  .detail-actions { flex-wrap: nowrap; gap: 6px; margin: 0 0 20px; }
   .detail-nav { display: flex; gap: 8px; }
+  .afilters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px 2px; padding: 0 16px 4px; }
+  .afilters::-webkit-scrollbar { display: none; }
+  .afilter { flex: none; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--muted); border-radius: 999px; padding: 6px 11px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .afilter.on { background: var(--ink); color: #0b0b12; border-color: var(--ink); }
+  .glink { border: 0; background: rgba(255,255,255,.08); color: var(--ink); font: inherit; font-style: normal; font-weight: 700; border-radius: 999px; padding: 2px 10px; }
   .detail-nav .btn.primary { flex: 1; }
   .detail-nav .navbtn { flex: none; width: 56px; font-size: 22px; padding: 10px 0; }
   .detail-actions .know-btn { font-size: 12px; padding: 7px 9px; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
@@ -913,7 +918,7 @@ function render() {
     frame.classList.toggle('fit', old.classList.contains('fit'));
     im.replaceWith(old.querySelector('img'));
   });
-  if (S.screen === 'atlas' && S.q) applyAtlasSearch();
+  if (S.screen === 'atlas' && (S.q || S.fg)) applyAtlasSearch();
   document.body.classList.toggle('noscroll', S.screen === 'atlas' && !!S.open);
   const car = $app.querySelector('[data-carousel]');
   if (car && S.openIdx) car.scrollLeft = S.openIdx * car.clientWidth;
@@ -1068,11 +1073,15 @@ const SCREENS = {
     return `<div class="sticky-head"><div class="lesson-top" style="margin-bottom:6px"><button class="x" data-act="home" title="Zpět">✕</button>
       <h2 style="flex:1">Atlas</h2>
       <button class="photo-mode ${hide ? 'on' : ''}" data-act="hideNames" title="Schovat / ukázat jména">${hide ? '👀 Ukázat jména' : '🙈 Schovat jména'}</button>${photoBtn()}</div>
-      <input class="search" type="search" data-search placeholder="Hledat zvíře…" value="${esc(S.q || '')}" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+      <input class="search" type="search" data-search placeholder="Hledat zvíře…" value="${esc(S.q || '')}" autocomplete="off" autocorrect="off" spellcheck="false">
+      <div class="afilters">
+        <button class="afilter ${S.fg ? '' : 'on'}" data-act="afilter" data-g="">Vše</button>
+        ${GROUPS.map(g => `<button class="afilter ${S.fg === g.id ? 'on' : ''}" data-act="afilter" data-g="${g.id}" style="--gc:${g.color}">${g.icon} ${g.name}</button>`).join('')}
+      </div></div>
       ${GROUPS.map(g => `<div class="agroup">
         <div class="section-title" style="color:${g.color}"><span>${g.icon} ${g.name}</span></div>
         <div class="atlas-grid">${ANIMALS.filter(a => a.g === g.id).map(a => `
-          <button class="btn acard" data-open="${esc(a.id)}" data-s="${esc(strip(a.cz + ' ' + a.la + ' ' + GROUP_BY_ID[a.g].name))}">${picHtml(imgsOf(a)[0], a)}
+          <button class="btn acard" data-open="${esc(a.id)}" data-s="${esc(strip(a.cz + ' ' + a.la + ' ' + GROUP_BY_ID[a.g].name))}" data-g="${a.g}">${picHtml(imgsOf(a)[0], a)}
             <div class="an">${hide ? '<span class="muted">? ? ?</span>' : esc(a.cz)}${dots(a)}</div></button>`).join('')}
         </div></div>`).join('')}
       <div class="search-empty" hidden>Nic takového tu není 🤷</div>
@@ -1080,10 +1089,9 @@ const SCREENS = {
   },
 };
 
-// Prev/next follow the Atlas order, limited to the current search results
+// Prev/next follow the Atlas order, limited to the current filter and search
 function atlasNeighbours(a) {
-  const q = strip(S.q || '');
-  const list = ANIMALS.filter(x => !q || strip(x.cz + ' ' + x.la + ' ' + GROUP_BY_ID[x.g].name).includes(q));
+  const list = ANIMALS.filter(x => inAtlasView(x));
   const i = list.indexOf(a);
   return { prev: i > 0 ? list[i - 1] : null, next: i >= 0 && i < list.length - 1 ? list[i + 1] : null };
 }
@@ -1103,7 +1111,7 @@ function atlasModal() {
     </div>
     <div class="detail-body">
       <div class="intro-name">${nameHtml(a)} ${speakBtn(a)}</div>
-      <div class="intro-sub">${esc(a.la)} · ${g.icon} ${g.name}</div>
+      <div class="intro-sub">${esc(a.la)} · <button class="glink" data-act="openGroup" data-g="${a.g}" title="Zobrazit celou skupinu">${g.icon} ${g.name} ›</button></div>
       <p class="detail-stats">Viděno ${p.s}× · správně ${p.c}× · špatně ${p.w}×</p>
       ${p.done ? `<p class="center mastered-note">✓ Znáš na 100 %, v lekcích se už neukazuje</p>` : ''}
     </div>
@@ -1751,7 +1759,7 @@ $app.addEventListener('click', e => {
     case 'lesson': startLesson(); break;
     case 'exam': startExam(); break;
     case 'cards': startCards(); break;
-    case 'atlas': go('atlas', { hide: store.get(K.hide, false), q: '' }); break;
+    case 'atlas': go('atlas', { hide: store.get(K.hide, false), q: '', fg: null }); break;
     case 'home': go('home'); break;
     case 'retry': go('loading'); loadImages(true).then(() => go('home')); break;
     case 'toggleAll': SELECTED = SELECTED.length === GROUPS.length ? [] : GROUPS.map(g => g.id); store.set(K.sel, SELECTED); render(); break;
@@ -1800,6 +1808,18 @@ $app.addEventListener('click', e => {
       if (C.i >= C.queue.length) { go('cardsEnd', { C }); confetti(); } else { C.img = pickImg(C.queue[C.i]); render(); }
       break;
     }
+    case 'afilter': {
+      S.fg = actEl.dataset.g || null;
+      $app.querySelectorAll('.afilter').forEach(b => b.classList.toggle('on', (b.dataset.g || null) === S.fg));
+      applyAtlasSearch();
+      window.scrollTo(0, 0);
+      break;
+    }
+    case 'openGroup': {
+      EGG = false; S.open = null; S.fg = actEl.dataset.g; S.q = '';
+      render(); window.scrollTo(0, 0);
+      break;
+    }
     case 'prevAnimal': case 'nextAnimal': {
       const nav = atlasNeighbours(ANIMALS.find(x => x.id === S.open));
       const to = act === 'prevAnimal' ? nav.prev : nav.next;
@@ -1840,12 +1860,13 @@ $app.addEventListener('click', e => {
   }
 });
 
+const inAtlasView = (a, q = strip(S.q || '')) => (!S.fg || a.g === S.fg) && (!q || strip(a.cz + ' ' + a.la + ' ' + GROUP_BY_ID[a.g].name).includes(q));
 function applyAtlasSearch() {
   const q = strip(S.q || '');
   let shown = 0;
   $app.querySelectorAll('.agroup').forEach(gr => {
     let n = 0;
-    gr.querySelectorAll('.acard').forEach(c => { const ok = !q || c.dataset.s.includes(q); c.hidden = !ok; if (ok) n++; });
+    gr.querySelectorAll('.acard').forEach(c => { const ok = (!S.fg || c.dataset.g === S.fg) && (!q || c.dataset.s.includes(q)); c.hidden = !ok; if (ok) n++; });
     gr.hidden = !n; shown += n;
   });
   const empty = $app.querySelector('.search-empty'); if (empty) empty.hidden = shown > 0;

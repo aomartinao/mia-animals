@@ -130,3 +130,35 @@ test('detail: actions and Zavřít sit at the bottom edge; ‹ › browse animal
   await expect(page.locator('.detail .intro-name')).toContainText('ropucha zelená');
   await expect(page.locator('[data-act=nextAnimal]')).toBeDisabled();
 });
+
+test('group filter chips; group link in the detail; ‹ › stay inside the group', async ({ page }) => {
+  await openApp(page);
+  await page.click('[data-act=atlas]');
+  await expect(page.locator('.afilter.on')).toHaveText('Vše');
+  await page.click('.afilter[data-g=par]');
+  expect(await visibleNames(page)).toEqual(['máčka skvrnitá', 'žralok bílý', 'žralok obrovský', 'kladivoun obecný', 'manta obrovská', 'chiméra podivná']);
+  await page.fill('[data-search]', 'zralok');                                 // filter + search combine
+  expect(await visibleNames(page)).toEqual(['žralok bílý', 'žralok obrovský']);
+  await page.fill('[data-search]', '');
+  await page.click('[data-open="chiméra podivná"]');
+  await expect(page.locator('[data-act=nextAnimal]')).toBeDisabled();       // last paryba
+  await page.click('[data-act=prevAnimal]');
+  await expect(page.locator('.detail .intro-name')).toContainText('manta obrovská');
+  // group link: from a fish detail jump to the whole "Ryby" group
+  await page.click('.detail-close [data-act=closeModal]');
+  await page.click('.afilter[data-g=""]');
+  await page.click('[data-open="kapr obecný"]');
+  await page.click('.detail [data-act=openGroup]');
+  expect(await page.evaluate(() => S.open)).toBeNull();
+  await expect(page.locator('.afilter.on')).toContainText('Ryby');
+  expect((await visibleNames(page)).length).toBe(13);
+});
+
+test('detail: the action pills keep a clear gap above ‹ Zavřít ›', async ({ page }) => {
+  await openApp(page);
+  await page.click('[data-act=atlas]');
+  await page.click('[data-open="kapr obecný"]');
+  const pills = await page.locator('.detail-actions').boundingBox();
+  const nav = await page.locator('.detail-nav').boundingBox();
+  expect(nav.y - (pills.y + pills.height)).toBeGreaterThanOrEqual(16);
+});
