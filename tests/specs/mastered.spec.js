@@ -25,6 +25,7 @@ test('"umím na 100 %" in a lesson removes the animal from training but not from
   let it = await page.evaluate(() => S.L.queue[S.L.i]);
   while ((await page.evaluate(() => S.L.queue[S.L.i].type)) !== 'intro') { await answer(page); await page.keyboard.press('Enter'); }
   const id = await page.evaluate(() => S.L.queue[S.L.i].a.id);
+  await expect(page.locator('.intro-head [data-act=mastered]')).toHaveText('✓ Tohle znám – už neukazovat');
   await page.click('[data-act=mastered]');
   expect(await page.evaluate(id => prog(ANIMALS.find(a => a.id === id)).done, id)).toBe(1);
   const rest = await page.evaluate(id => S.L.queue.slice(S.L.i).filter(q => q.a.id === id).length, id);
