@@ -1522,7 +1522,8 @@ async function logout() {
 // Old address (GitHub Pages): once the new one is live, send the player there with everything.
 async function checkMoved() {
   if (!/github\.io$/.test(location.hostname)) return false;
-  try { const r = await fetch(NEW_HOME + 'moved.json', { cache: 'no-store' }); if (!r.ok) return false; } catch (e) { return false; }
+  // moved.json on the new site is the switch: {"moved": true} sends everyone over.
+  try { const r = await fetch(NEW_HOME + 'moved.json', { cache: 'no-store' }); if (!r.ok || (await r.json()).moved !== true) return false; } catch (e) { return false; }
   const d = {};
   for (const k of MOVE_KEYS) { const v = store.get(K[k], undefined); if (v !== undefined) d[k] = v; }
   const url = NEW_HOME + location.search + '#import=' + encodeURIComponent(JSON.stringify(d));

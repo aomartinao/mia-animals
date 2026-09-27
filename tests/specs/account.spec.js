@@ -60,9 +60,10 @@ test('anonymous players cannot write account progress', async ({ browser }) => {
 });
 
 // Serve the app under the old (GitHub Pages) and the new (Firebase Hosting) address.
-const serveHosts = (ctx, { live = true } = {}) => ctx.route(/aomartinao\.github\.io\/mia-animals\/|mia-animals\.web\.app\//, async r => {
+const serveHosts = (ctx, { live = true, moved = true } = {}) => ctx.route(/aomartinao\.github\.io\/mia-animals\/|mia-animals\.web\.app\//, async r => {
   const u = new URL(r.request().url());
   if (u.hostname.endsWith('web.app') && !live) return r.fulfill({ status: 404, body: 'Site Not Found' });
+  if (u.pathname === '/moved.json') return r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ moved }) });
   const res = await r.fetch({ url: 'http://localhost:4173' + u.pathname.replace(/^\/mia-animals\//, '/') + u.search });
   return r.fulfill({ response: res, headers: { ...res.headers(), 'access-control-allow-origin': '*' } });
 });
@@ -85,13 +86,20 @@ test('old address sends the player to the new one with all progress', async ({ b
   await expect(page.locator('[data-act=google]')).toBeVisible();
 });
 
-test('old address stays put until the new one is live; home-screen app shows how to move', async ({ browser }) => {
+test('old address stays put until the new one is live and switched on; home-screen app shows how to move', async ({ browser }) => {
   const page = await device(browser, new FakeFirebase(), oldData);
   await serveHosts(page.context(), { live: false });
   await page.goto('https://aomartinao.github.io/mia-animals/');
   await page.waitForFunction(() => typeof S !== 'undefined' && S.screen === 'home');
   expect(page.url()).toContain('github.io');
   await expect(page.locator('[data-act=google]')).toHaveCount(0);   // Google login only on the new address
+
+  // New site live but the switch in moved.json is off: nothing changes either.
+  const off = await device(browser, new FakeFirebase(), oldData);
+  await serveHosts(off.context(), { moved: false });
+  await off.goto('https://aomartinao.github.io/mia-animals/');
+  await off.waitForFunction(() => typeof S !== 'undefined' && S.screen === 'home');
+  expect(off.url()).toContain('github.io');
 
   const app = await device(browser, new FakeFirebase(), () => { Object.defineProperty(navigator, 'standalone', { value: true }); });
   await app.context().addInitScript(oldData);
