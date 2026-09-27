@@ -3,7 +3,7 @@ import { setupMocks, openApp, answer, playThrough } from '../helpers.js';
 
 const CZECH = /[ěščřžýáíéůúťďňĚŠČŘŽÝÁÍÉŮÚŤĎŇ]/;
 const noCzech = async page => {
-  const text = await page.evaluate(() => document.body.innerText.replace('Česky', '').replace(/Galápagos/g, ''));   // the switch back to Czech; a real English name
+  const text = await page.evaluate(() => document.body.innerText.replace('Učit se česká jména', '').replace(/Galápagos/g, ''));   // the switch back to Czech; a real English name
   expect(text.match(new RegExp(`.{0,30}${CZECH.source}.{0,30}`))?.[0] ?? null).toBeNull();
 };
 
@@ -54,24 +54,28 @@ test('English typed answers accept the usual names and small typos', async ({ br
   expect(await page.evaluate(() => ANIMALS.filter(a => a.name === a.cz).map(a => a.cz))).toEqual([]);
 });
 
-test('language follows the device first, then the switch on home (progress kept)', async ({ browser }) => {
+test('first screen follows the device language; the switch on home keeps points but each language has its own progress', async ({ browser }) => {
   for (const [locale, lang] of [['cs-CZ', 'cs'], ['en-GB', 'en'], ['de-DE', 'en']]) {
     const ctx = await browser.newContext({ locale });
-    await setupMocks(ctx, { lang: null });
+    await setupMocks(ctx, { lang: null, onboarded: false });   // a new player, before choosing
     const page = await ctx.newPage();
     await openApp(page);
-    expect(await page.evaluate(() => LANG)).toBe(lang);
+    expect(await page.evaluate(() => [LANG, S.O.steps[0]])).toEqual([lang, 'lang']);
     await ctx.close();
   }
   const ctx = await browser.newContext();
   await setupMocks(ctx);                       // Czech
   const page = await ctx.newPage();
   await openApp(page);
-  await page.evaluate(() => { STATS.xp = 42; store.set(K.stats, STATS); });
+  await page.evaluate(() => { STATS.xp = 42; store.set(K.stats, STATS); setMastered(findAnimal('kapr obecný'), true); });
   await page.click('[data-act=lang]');
   await page.waitForFunction(() => typeof S !== 'undefined' && S.screen === 'home' && EN);
-  expect(await page.evaluate(() => STATS.xp)).toBe(42);
-  await expect(page.locator('[data-act=lang]')).toContainText('Česky');
+  // points stay, but English names are learnt from scratch
+  expect(await page.evaluate(() => [STATS.xp, Object.values(PROGRESS).filter(p => p.s || p.done).length])).toEqual([42, 0]);
+  await expect(page.locator('[data-act=lang]')).toContainText('Učit se česká jména');
+  await page.click('[data-act=lang]');
+  await page.waitForFunction(() => typeof S !== 'undefined' && S.screen === 'home' && !EN);
+  expect(await page.evaluate(() => !!PROGRESS['kapr obecný'].done)).toBe(true);
 });
 
 test('English: onboarding, a finished lesson and the practice test have no Czech left', async ({ browser }) => {
@@ -92,4 +96,24 @@ test('English: onboarding, a finished lesson and the practice test have no Czech
   await page.fill('input[name=ans]', 'nope');
   await page.keyboard.press('Enter');
   await noCzech(page);                                  // wrong-answer feedback
+});
+
+test('first launch: she chooses the language of the names; the first screen speaks the device language', async ({ browser }) => {
+  const ctx = await browser.newContext({ locale: 'en-GB', viewport: { width: 390, height: 844 } });
+  await setupMocks(ctx, { lang: null, onboarded: false });
+  const page = await ctx.newPage();
+  await openApp(page);
+  await expect(page.locator('.onb-lead')).toContainText('Which animal names do you want to learn?');
+  await page.click('[data-act=pickLang][data-lang=cs]');
+  await page.waitForFunction(() => typeof S !== 'undefined' && S.screen === 'onboard' && !EN);
+  await expect(page.locator('.onb-title')).toHaveText('Poznávačka');     // straight to the welcome, now in Czech
+  await expect(page.locator('.start-choices [data-act=onbNext]')).toContainText('Začít bez přihlášení');
+});
+
+test('players from before the language choice stay in Czech', async ({ browser }) => {
+  const ctx = await browser.newContext({ locale: 'en-GB' });
+  await setupMocks(ctx, { lang: null });            // onboarded, no language saved
+  const page = await ctx.newPage();
+  await openApp(page);
+  expect(await page.evaluate(() => [LANG, S.screen])).toEqual(['cs', 'home']);
 });

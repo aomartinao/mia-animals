@@ -50,8 +50,9 @@ service cloud.firestore {
       allow read, delete: if isMe(uid);
       allow create, update: if isMe(uid)
         && request.auth.token.firebase.sign_in_provider == 'google.com'
-        && request.resource.data.keys().hasOnly(['prog', 'stats', 'name', 'updated'])
+        && request.resource.data.keys().hasOnly(['prog', 'progEn', 'stats', 'name', 'updated'])
         && request.resource.data.prog is string && request.resource.data.prog.size() <= 60000
+        && (!('progEn' in request.resource.data) || (request.resource.data.progEn is string && request.resource.data.progEn.size() <= 60000))
         && request.resource.data.stats is string && request.resource.data.stats.size() <= 2000
         && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 16))
         && request.resource.data.updated is timestamp;
