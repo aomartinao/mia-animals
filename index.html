@@ -287,7 +287,8 @@
   .cdots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.45); transition: width .2s, background .2s; }
   .cdots i.on { width: 20px; border-radius: 4px; background: #fff; }
   .detail-x { position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 12px; background: rgba(0,0,0,.45); color: #fff;
-    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); z-index: 2; }
+  .detail-snd { left: auto; right: 12px; }
   .detail-body { flex: 1 0 auto; width: 100%; max-width: 640px; margin: 0 auto; padding: 8px 16px; display: flex; flex-direction: column; justify-content: center; }
   .detail-body .intro-name { margin-top: 12px; }
   .detail-close { flex: none; position: sticky; bottom: 0; width: 100%; max-width: 640px; margin: 0 auto; padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
@@ -297,7 +298,12 @@
   .detail-actions { flex-wrap: nowrap; gap: 6px; margin: 0 0 20px; }
   .detail-nav { display: flex; gap: 8px; }
   .start-choices { display: grid; gap: 10px; }
-  .start-choices .btn span { display: block; font-weight: 700; opacity: .8; margin-top: 3px; }
+  .start-choices .btn > span.small { display: block; font-weight: 700; opacity: .8; margin-top: 3px; }
+  /* Google's standard light sign-in button: white, grey text, the four-colour G */
+  .google-btn { background: #fff; color: #1f1f1f; border: 1px solid #dadce0; --edge: rgba(0,0,0,.25); font-family: Roboto, Arial, sans-serif; }
+  .google-btn .g-row { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; }
+  .google-btn .g-logo { width: 20px; height: 20px; flex: none; }
+  .google-btn .small { display: block; color: #5f6368; font-weight: 600; margin-top: 3px; }
   .afilters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px 2px; padding: 0 16px 4px; }
   .afilters::-webkit-scrollbar { display: none; }
   .afilter { flex: none; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--muted); border-radius: 999px; padding: 6px 11px; font-size: 13px; font-weight: 700; white-space: nowrap; }
@@ -675,6 +681,9 @@ let WHOLE = store.get(K.whole, false);
 document.body.classList.toggle('whole-photos', WHOLE);
 const EXPAND_ICON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v7M9 5l3-3 3 3M12 22v-7M9 19l3 3 3-3M2 12h7M5 9l-3 3 3 3M22 12h-7M19 9l3 3-3 3"/></svg>';
 const photoLabel = () => WHOLE ? '✂️ Ořez' : EXPAND_ICON + ' Celé';
+const GOOGLE_G = '<svg class="g-logo" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+const googleBtn = sub => `<button class="btn wide google-btn" data-act="google"><span class="g-row">${GOOGLE_G}Přihlásit se přes Google</span>${sub ? `<span class="small">${sub}</span>` : ''}</button>`;
+const soundBtn = (cls = 'x') => `<button class="${cls}" data-act="sound" title="${SOUND ? 'Vypnout zvuk' : 'Zapnout zvuk'}">${SOUND ? '🔊' : '🔇'}</button>`;
 const photoBtn = () => `<button class="photo-mode" data-act="photoMode" title="Přepnout ořez / celé fotky">${photoLabel()}</button>`;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -1001,7 +1010,7 @@ const SCREENS = {
     <div class="foot">
       ${!GOOGLE_OK ? '' : ACCOUNT ? `<div class="muted small account" style="font-weight:700;margin-bottom:8px">☁️ Pokrok se ukládá do účtu ${esc(ACCOUNT.email)}
         <button class="btn ghost small" data-act="logout">Odhlásit</button></div>`
-      : `<button class="btn wide" data-act="google" style="margin-bottom:10px">☁️ Přihlásit přes Google <span class="small muted">· pokrok na mobilu i počítači</span></button>`}
+      : `<div style="margin-bottom:10px">${googleBtn('Pokrok na mobilu i počítači')}</div>`}
       <button class="btn wide" data-act="share" style="margin-bottom:10px">📤 Pošli apku kamarádům</button>
       <button class="btn wide" data-act="feedback" style="margin-bottom:10px">💬 Nápad nebo chyba? Napiš Gandalfovi</button>
       <button class="btn ghost small" data-act="sound">${SOUND ? '🔊 Zvuk zapnutý' : '🔇 Zvuk vypnutý'}</button>
@@ -1028,7 +1037,7 @@ const SCREENS = {
       body = questionBody(it, L);
     }
     return `<div class="lesson-top"><button class="x" data-act="quit" title="Ukončit">✕</button>
-      <div class="bar"><i style="width:${pct}%"></i></div>${photoBtn()}
+      <div class="bar"><i style="width:${pct}%"></i></div>${photoBtn()}${soundBtn()}
       ${L.exam || L.duel ? `<b class="small">${L.duel ? '⚔️ ' : ''}${L.done}/${L.total}</b>` : ''}</div>
       ${body}`;
   },
@@ -1069,7 +1078,7 @@ const SCREENS = {
   cards() {
     const C = S.C, a = C.queue[C.i];
     return `<div class="lesson-top"><button class="x" data-act="home" title="Zpět">✕</button>
-      <div class="bar"><i style="width:${C.i / C.queue.length * 100}%;background:var(--blue)"></i></div><b class="small">${C.i + 1}/${C.queue.length}</b>${photoBtn()}</div>
+      <div class="bar"><i style="width:${C.i / C.queue.length * 100}%;background:var(--blue)"></i></div><b class="small">${C.i + 1}/${C.queue.length}</b>${photoBtn()}${soundBtn()}</div>
       <div class="q-title">Víš, jak se jmenuje?</div>
       <div class="flash" data-act="flip">${picHtml(C.img, a, 'pop')}</div>
       <div class="reveal">${C.flipped
@@ -1127,6 +1136,8 @@ function atlasModal() {
   const nav = atlasNeighbours(a);
   return `<div class="detail" data-stop>
     <div class="hero-photo">
+      <button class="x detail-x" data-act="closeModal" title="Zavřít">✕</button>
+      ${soundBtn('x detail-x detail-snd')}
       <div class="carousel" data-carousel>
         ${list.length ? list.map(u => picHtml(u, a, 'whole slide')).join('') : picHtml(null, a, 'whole slide')}
       </div>
@@ -1901,8 +1912,8 @@ SCREENS.onboard = function () {
         <div class="lb-row"><span style="font-size:24px">🏆</span><span>Žebříček a souboje s kamarády</span></div>
       </div>
       ${GOOGLE_OK ? `<div class="start-choices">
-        <button class="btn primary wide" data-act="onbNext">▶ Začít bez přihlášení<span class="small">Postup se uloží jen v tomhle zařízení</span></button>
-        <button class="btn primary wide" data-act="google">☁️ Přihlásit přes Google<span class="small">Postup na mobilu i počítači, přezdívka se neztratí</span></button>
+        <button class="btn primary wide" data-act="onbNext">▶ Začít bez přihlášení<span class="small">Pokrok a přezdívka se uloží jen v tomhle zařízení</span></button>
+        ${googleBtn('Pokrok na mobilu i počítači, přezdívka se neztratí')}
       </div>` : `<button class="btn primary wide" data-act="onbNext" autofocus>Začít</button>`}`;
   } else if (step === 'install') {
     const ios = (O.os || (isIOS ? 'ios' : 'android')) === 'ios';
@@ -2005,7 +2016,10 @@ $app.addEventListener('click', e => {
     case 'google': googleLogin(); break;
     case 'feedback': go('feedback', { F: {} }); break;
     case 'logout': logout(); break;
-    case 'sound': SOUND = !SOUND; store.set(K.sound, SOUND); render(); break;
+    case 'sound':
+      SOUND = !SOUND; store.set(K.sound, SOUND);
+      if (!SOUND && 'speechSynthesis' in window) speechSynthesis.cancel();
+      render(); break;
     case 'reset':
       if (confirm('Opravdu smazat celý pokrok? Tohle nejde vrátit.')) {
         PROGRESS = {}; STATS = { xp: 0, streak: 0, lastDay: null, lessons: 0 };
