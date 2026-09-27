@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupMocks, openApp, answer } from '../helpers.js';
+import { setupMocks, openApp, answer, openDetail } from '../helpers.js';
 
 test.use({ hasTouch: true });
 test.beforeEach(async ({ context }) => { await setupMocks(context); });
@@ -37,7 +37,7 @@ test('detail: full screen, swipe photos with dots, hide the current photo, close
   page.on('dialog', d => d.accept());
   await openApp(page);
   await page.click('[data-act=atlas]');
-  await page.click('[data-open="kapr obecný"]');
+  await openDetail(page, 'kapr obecný');
   const slides = await page.locator('.slide').count();
   expect(slides).toBeGreaterThan(1);
   await expect(page.locator('.cdots i')).toHaveCount(slides);
@@ -54,19 +54,19 @@ test('detail: full screen, swipe photos with dots, hide the current photo, close
 test('easter egg: triple tap or long press on the chimp, resets on reopen', async ({ page }) => {
   await openApp(page);
   await page.click('[data-act=atlas]');
-  await page.click('[data-open="šimpanz učenlivý"]');
+  await openDetail(page, 'šimpanz učenlivý');
   const name = page.locator('.detail .intro-name');
   const box = await page.locator('.slide').first().boundingBox();
   for (let i = 0; i < 3; i++) await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
   await expect(name).toContainText('Mia, la mia scimmia');
   await page.click('.detail-close [data-act=closeModal]');
-  await page.click('[data-open="šimpanz učenlivý"]');
+  await openDetail(page, 'šimpanz učenlivý');
   await expect(name).toContainText('šimpanz učenlivý');
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down(); await page.waitForTimeout(700); await page.mouse.up();
   await expect(name).toContainText('Mia, la mia scimmia');
   await page.click('.detail-close [data-act=closeModal]');
-  await page.click('[data-open="kapr obecný"]');
+  await openDetail(page, 'kapr obecný');
   const kbox = await page.locator('.slide').first().boundingBox();
   for (let i = 0; i < 3; i++) await page.touchscreen.tap(kbox.x + kbox.width / 2, kbox.y + kbox.height / 2);
   await expect(page.locator('.detail .intro-name')).toContainText('kapr obecný');
@@ -89,7 +89,7 @@ for (const vp of [{ width: 390, height: 844 }, { width: 375, height: 667 }]) {
     await page.setViewportSize(vp);
     await openApp(page);
     await page.click('[data-act=atlas]');
-    await page.click('[data-open="žralok bílý"]');
+    await openDetail(page, 'žralok bílý');
     const box = await page.locator('.detail-close [data-act=closeModal]').boundingBox();
     expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
     await page.click('.detail-close [data-act=closeModal]');
@@ -102,7 +102,7 @@ for (const width of [340, 390]) {
     await page.setViewportSize({ width, height: 800 });
     await openApp(page);
     await page.click('[data-act=atlas]');
-    await page.click('[data-open="kapr obecný"]');
+    await openDetail(page, 'kapr obecný');
     const boxes = await page.$$eval('.detail-actions > *', els => els.map(e => e.getBoundingClientRect()).map(r => ({ top: Math.round(r.top), right: r.right })));
     expect(boxes.length).toBe(3);
     expect(new Set(boxes.map(b => b.top)).size).toBe(1);
@@ -113,7 +113,7 @@ for (const width of [340, 390]) {
 test('detail: actions and Zavřít sit at the bottom edge; ‹ › browse animals (within search)', async ({ page }) => {
   await openApp(page);
   await page.click('[data-act=atlas]');
-  await page.click('[data-open="kapr obecný"]');
+  await openDetail(page, 'kapr obecný');
   const vh = page.viewportSize().height;
   const bar = await page.locator('.detail-close').boundingBox();
   expect(Math.round(bar.y + bar.height)).toBeGreaterThanOrEqual(vh - 2);   // pinned to the bottom
@@ -124,7 +124,7 @@ test('detail: actions and Zavřít sit at the bottom edge; ‹ › browse animal
   await expect(page.locator('.detail .intro-name')).toContainText('chiméra podivná');
   await page.click('.detail-close [data-act=closeModal]');
   await page.fill('[data-search]', 'ropucha');
-  await page.click('[data-open="ropucha obecná"]');
+  await openDetail(page, 'ropucha obecná');
   await expect(page.locator('[data-act=prevAnimal]')).toBeDisabled();
   await page.click('[data-act=nextAnimal]');
   await expect(page.locator('.detail .intro-name')).toContainText('ropucha zelená');
@@ -140,14 +140,14 @@ test('group filter chips; group link in the detail; ‹ › stay inside the grou
   await page.fill('[data-search]', 'zralok');                                 // filter + search combine
   expect(await visibleNames(page)).toEqual(['žralok bílý', 'žralok obrovský']);
   await page.fill('[data-search]', '');
-  await page.click('[data-open="chiméra podivná"]');
+  await openDetail(page, 'chiméra podivná');
   await expect(page.locator('[data-act=nextAnimal]')).toBeDisabled();       // last paryba
   await page.click('[data-act=prevAnimal]');
   await expect(page.locator('.detail .intro-name')).toContainText('manta obrovská');
   // group link: from a fish detail jump to the whole "Ryby" group
   await page.click('.detail-close [data-act=closeModal]');
   await page.click('.afilter[data-g=""]');
-  await page.click('[data-open="kapr obecný"]');
+  await openDetail(page, 'kapr obecný');
   await page.click('.detail [data-act=openGroup]');
   expect(await page.evaluate(() => S.open)).toBeNull();
   await expect(page.locator('.afilter.on')).toContainText('Ryby');
@@ -157,7 +157,7 @@ test('group filter chips; group link in the detail; ‹ › stay inside the grou
 test('detail: the action pills keep a clear gap above ‹ Zavřít ›', async ({ page }) => {
   await openApp(page);
   await page.click('[data-act=atlas]');
-  await page.click('[data-open="kapr obecný"]');
+  await openDetail(page, 'kapr obecný');
   // Measure both in the same frame, after the slide-in animation: two separate boundingBox()
   // calls can land in different animation frames and see different translateY offsets.
   const gap = await page.locator('.detail').evaluate(async el => {
