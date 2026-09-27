@@ -57,6 +57,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         if: env.SA != ''
+        with:
+          persist-credentials: false   # never leave a token in .git/ next to the published files
 
       - uses: actions/setup-node@v4
         if: env.SA != ''
@@ -67,6 +69,7 @@ jobs:
         if: env.SA != ''
         run: |
           printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          rm -rf .git   # hosting publishes the repo root; keep git internals out of it
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx -y firebase-tools@15 deploy --only hosting,firestore:rules --project mia-animals --non-interactive
 
       - name: No deploy key yet
