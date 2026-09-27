@@ -1457,12 +1457,14 @@ async function googleLogin() {
   } catch (e) { alert('Přihlášení se nepovedlo spustit. Zkontroluj internet.'); }
 }
 async function finishGoogleLogin() {
-  const pend = store.get(K.glogin, null), q = new URLSearchParams(location.search);
-  if (!pend || !(q.has('code') || q.has('error'))) return false;
+  // Google answers in the query (?code=) or, for Firebase's implicit flow, in the fragment (#id_token=).
+  const pend = store.get(K.glogin, null), q = new URLSearchParams(location.search.slice(1) + '&' + location.hash.slice(1));
+  const ok = q.has('code') || q.has('id_token') || q.has('access_token');
+  if (!pend || !(ok || q.has('error'))) return false;
   store.del(K.glogin);
-  const requestUri = location.href;
+  const requestUri = location.href;                           // with the fragment: signInWithIdp needs it
   history.replaceState(null, '', pend.back);
-  if (!q.has('code')) return false;                          // cancelled on the Google page
+  if (!ok) return false;                                      // cancelled on the Google page
   try {
     const j = await idt('signInWithIdp', { requestUri, sessionId: pend.sid, returnSecureToken: true });
     await switchAccount({ uid: j.localId, id: j.idToken, refresh: j.refreshToken, exp: Date.now() + (+j.expiresIn) * 1000 }, j.email || '');

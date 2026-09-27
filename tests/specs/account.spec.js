@@ -25,7 +25,7 @@ test('Google login: progress and nickname follow the account to another device; 
 
   await phone.click('[data-act=google]');
   await expect(phone.locator('.account')).toContainText('mia@skola.cz');
-  expect(await phone.evaluate(() => [store.get(K.auth).uid, PLAYER.name, STATS.xp, location.search])).toEqual(['gmia', 'Mia', before.xp, '']);
+  expect(await phone.evaluate(() => [store.get(K.auth).uid, PLAYER.name, STATS.xp, location.search + location.hash])).toEqual(['gmia', 'Mia', before.xp, '']);
   // The board entry and the name moved from the device's anonymous account to the Google one.
   expect(fb.db.has('players/uid1')).toBe(false);
   expect(fb.db.get('players/gmia').fields.name.stringValue).toBe('Mia');
