@@ -279,7 +279,7 @@
   .search-empty { text-align: center; color: var(--muted); font-weight: 700; padding: 30px 0; }
   .noscroll { overflow: hidden; }
   .detail { position: fixed; inset: 0; z-index: 60; background: var(--bg); overflow-y: auto; animation: rise .25s cubic-bezier(.2,.8,.2,1); }
-  .hero-photo { position: relative; height: min(62vh, 560px); background: #000; }
+  .hero-photo { position: relative; height: clamp(220px, calc(100dvh - 360px), 560px); background: #000; }
   .carousel { display: flex; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
   .carousel::-webkit-scrollbar { display: none; }
   .pic.slide { flex: none; width: 100%; height: 100%; aspect-ratio: auto !important; border-radius: 0; box-shadow: none; scroll-snap-align: center; overflow: hidden; }
@@ -288,10 +288,20 @@
   .cdots i.on { width: 20px; border-radius: 4px; background: #fff; }
   .detail-x { position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 12px; background: rgba(0,0,0,.45); color: #fff;
     -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-  .detail-body { max-width: 640px; margin: 0 auto; padding: 4px 16px calc(24px + env(safe-area-inset-bottom)); }
+  .detail-body { max-width: 640px; margin: 0 auto; padding: 4px 16px 0; }
+  .detail-body .intro-name { margin-top: 12px; }
+  .detail-close { position: sticky; bottom: 0; max-width: 640px; margin: 8px auto 0; padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--bg) 70%, transparent); }
   .detail-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
   .detail-actions a { text-decoration: none; }
-  .btn.mastered-btn { margin-bottom: 6px; color: var(--green); }
+  .detail-actions .know-btn { font-size: 13px; padding: 7px 12px; }
+  .intro-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .intro-head .badge { margin-bottom: 0; }
+  .know-btn { flex: none; border: 1px solid var(--line-d); background: rgba(255,255,255,.06); color: var(--muted); border-radius: 999px;
+    padding: 6px 11px; font-size: 12.5px; font-weight: 700; line-height: 1.2; }
+  .know-btn:active { background: rgba(182,255,59,.15); color: var(--green); }
+  .know-row { display: flex; justify-content: flex-end; margin: 0 0 10px; }
+  .feedback .know-btn { color: inherit; opacity: .8; border-color: currentColor; background: transparent; }
   .mastered-note { color: var(--green); font-weight: 800; margin: 4px 0; }
 </style>
 </head>
@@ -974,12 +984,12 @@ const SCREENS = {
     const pct = L.done / L.total * 100;
     let body = '';
     if (it.type === 'intro') {
-      body = `<span class="badge">Nové zvíře</span>
+      body = `<div class="intro-head"><span class="badge">Nové zvíře</span>${it.offerKnow ? `<button class="know-btn" data-act="mastered" title="Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)">✓ Tohle znám – už neukazovat</button>` : ''}</div>
         ${picHtml(it.img, it.a, 'pop')}
         <div class="intro-name">${nameHtml(it.a)} ${speakBtn(it.a)}</div>
         <div class="intro-sub">${esc(it.a.la)} · ${GROUP_BY_ID[it.a.g].icon} ${GROUP_BY_ID[it.a.g].name}</div>
         <div class="spacer"></div>
-        <div class="feedback neutral">${!L.exam && !L.duel ? `<button class="btn ghost small wide mastered-btn" data-act="mastered">✓ Umím na 100 % – už neukazovat</button>` : ''}<button class="btn primary wide" data-act="next" autofocus>Pokračovat</button></div>`;
+        <div class="feedback neutral"><button class="btn primary wide" data-act="next" autofocus>Pokračovat</button></div>`;
     } else {
       body = questionBody(it, L);
     }
@@ -1034,7 +1044,7 @@ const SCREENS = {
       <div class="spacer"></div>
       <div class="feedback neutral">${C.flipped
         ? `<div class="row"><button class="btn red" data-act="cardNo">😕 Nevěděl/a</button><button class="btn primary" data-act="cardYes">😎 Věděl/a</button></div>
-           <button class="btn ghost small wide mastered-btn" data-act="cardMastered">✓ Umím na 100 % – už neukazovat</button>`
+           <div class="know-row"><button class="know-btn" data-act="cardMastered" title="Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)">✓ Tohle znám – už neukazovat</button></div>`
         : `<button class="btn blue wide" data-act="flip" autofocus>Ukázat</button>`}</div>`;
   },
   cardsEnd() {
@@ -1080,14 +1090,15 @@ function atlasModal() {
     <div class="detail-body">
       <div class="intro-name">${nameHtml(a)} ${speakBtn(a)}</div>
       <div class="intro-sub">${esc(a.la)} · ${g.icon} ${g.name}</div>
-      <p class="center small muted">Viděno ${p.s}×, správně ${p.c}×, špatně ${p.w}×</p>
-      ${p.done ? `<p class="center mastered-note">✓ Umíš na 100 %, v lekcích se už neukazuje</p>` : ''}
-      <div class="detail-actions"><button class="btn ${p.done ? '' : 'ghost'} small" data-act="toggleMastered">${p.done ? '↩️ Vrátit do procvičování' : '✓ Umím na 100 %'}</button></div>
+      <p class="center small muted" style="margin:6px 0">Viděno ${p.s}×, správně ${p.c}×, špatně ${p.w}×</p>
+      ${p.done ? `<p class="center mastered-note">✓ Znáš na 100 %, v lekcích se už neukazuje</p>` : ''}
       <div class="detail-actions">
-        ${list.length ? `<button class="btn ghost small" data-act="badImg" title="Fotka nesedí? Skryj ji.">🚫 Tahle fotka nesedí</button>` : ''}
-        <a class="btn ghost small" href="https://cs.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">📖 Wikipedie</a>
+        <button class="know-btn" data-act="toggleMastered">${p.done ? '↩️ Vrátit do procvičování' : '✓ Tohle znám'}</button>
+        ${list.length ? `<button class="know-btn" data-act="badImg" title="Fotka nesedí? Skryj ji.">🚫 Fotka nesedí</button>` : ''}
+        <a class="know-btn" href="https://cs.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">📖 Wikipedie</a>
       </div>
-      <button class="btn primary wide" style="margin-top:12px" data-act="closeModal">Zavřít</button>
+    </div>
+    <div class="detail-close"><button class="btn primary wide" data-act="closeModal">Zavřít</button></div>
     </div>
   </div>`;
 }
@@ -1139,7 +1150,7 @@ function questionBody(it, L) {
       : `<b>${nameHtml(a)}</b>`;
     fb = `<div class="spacer"></div><div class="feedback ${st.ok ? 'ok' : 'bad'}">
       <h3>${st.ok ? '✅' : '❌'} ${title}</h3><p>${msg} ${speakBtn(a)}</p>
-      ${st.ok && !L.exam && !L.duel ? `<button class="btn ghost small wide mastered-btn" data-act="mastered">✓ Umím na 100 % – už neukazovat</button>` : ''}
+      ${st.ok && it.offerKnow ? `<div class="know-row"><button class="know-btn" data-act="mastered" title="Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)">✓ Tohle znám – už neukazovat</button></div>` : ''}
       <button class="btn primary wide ${st.ok ? '' : 'bad'}" data-act="next" autofocus>Pokračovat</button></div>`;
   }
   return html + fb;
@@ -1182,6 +1193,9 @@ function startLesson(fromList) {
       const a = sample(P); items.push(makeQuestion(a, prog(a).b));
     }
   }
+  // 'Tohle znám' is offered only where an animal first shows up in the lesson
+  const offered = new Set();
+  items.forEach(it => { if (!offered.has(it.a.id)) { offered.add(it.a.id); it.offerKnow = true; } });
   const L = { queue: items, i: 0, done: 0, total: items.length, questions: 0, firstQs: 0, firstTry: 0, xp: 0, mistakes: [], seenWrong: new Set(), exam: false };
   preload(items.flatMap(it => [it.img, ...(it.type === 'pickImage' ? it.options.map(o => o.img) : [])]));
   go('lesson', { L });
