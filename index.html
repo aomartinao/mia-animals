@@ -1377,8 +1377,33 @@ async function fsCall(method, path, body) {
 
 let syncTimer = null;
 function scheduleSync() { if (!PLAYER) return; clearTimeout(syncTimer); syncTimer = setTimeout(() => syncPlayer().catch(() => {}), 1500); }
+// Nicknames are unique: names/{key} belongs to one uid. The key mirrors nameKey() in firestore.rules.
+const NAME_FOLD = { á: 'a', à: 'a', â: 'a', ä: 'a', č: 'c', ď: 'd', é: 'e', ě: 'e', ë: 'e', í: 'i', ï: 'i', ň: 'n', ó: 'o', ö: 'o', ô: 'o', ř: 'r', š: 's', ť: 't', ú: 'u', ů: 'u', ü: 'u', ý: 'y', ž: 'z' };
+const nameKey = n => n.toLowerCase().replace(/[áàâäčďéěëíïňóöôřšťúůüýž]/g, c => NAME_FOLD[c]).replace(/[^a-z0-9]/g, '');
+const nameOwner = async key => { try { return fsRead((await fsCall('GET', `names/${key}`)).fields).uid; } catch (e) { if (/404/.test(e.message)) return null; throw e; } };
+async function claimName(name) {
+  const a = await fbToken(), key = nameKey(name);
+  let owner = await nameOwner(key);
+  if (!owner) {
+    try { await fsCall('PATCH', `names/${key}?currentDocument.exists=false`, fsDoc({ uid: a.uid })); owner = a.uid; }
+    catch (e) { owner = await nameOwner(key); }
+  }
+  if (owner !== a.uid) throw new Error('taken');
+  return a.uid;
+}
+async function releaseName(name) {
+  const a = await fbToken(), key = nameKey(name);
+  if (key.length >= 2 && await nameOwner(key) === a.uid) await fsCall('DELETE', `names/${key}`);
+}
+async function ensureName() {
+  const a = await fbToken();
+  if (PLAYER.uid === a.uid) return;
+  await claimName(PLAYER.name);
+  PLAYER.uid = a.uid; store.set(K.player, PLAYER);
+}
 async function syncPlayer() {
   if (!PLAYER) return;
+  await ensureName();
   const a = await fbToken();
   const now = new Date();
   await Promise.all([
@@ -1400,7 +1425,10 @@ async function loadBoard() {
     if (PLAYER) await syncPlayer();
     S.B.rows = await fetchBoard(S.B.tab);
     S.B.me = (store.get(K.auth, null) || {}).uid;
-  } catch (e) { S.B.error = String(e.message || e); }
+  } catch (e) {
+    if (e.message === 'taken') { S.B.rename = true; S.B.error = NICK_TAKEN; }
+    else S.B.error = String(e.message || e);
+  }
   S.B.loading = false;
   if (S.screen === 'board') render();
 }
@@ -1411,6 +1439,19 @@ const NICK_STRIP = new RegExp("[^a-z0-9@$!|€+]", 'g');
 const badName = n => NICK_BAD.test(n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(NICK_STRIP, '').replace(NICK_ALLOW, ''));
 // END NICKFILTER
 const NICK_REFUSED = 'Tahle přezdívka není povolená. Zkus jinou.';
+const NICK_TAKEN = 'Tuhle přezdívku už někdo má. Zkus jinou.';
+const NICK_SHORT = 'Přezdívka musí mít aspoň 2 písmena nebo číslice.';
+const nickError = e => e.message === 'taken' ? NICK_TAKEN : /403/.test(e.message) ? NICK_REFUSED : null;
+// Claim the new name first, then move the board entries over, then free the old name.
+async function setNick(name) {
+  const old = PLAYER && PLAYER.name;
+  const uid = await claimName(name);
+  const prev = PLAYER;
+  PLAYER = { name, uid };
+  try { await syncPlayer(); } catch (e) { PLAYER = prev; if (nameKey(name) !== nameKey(old || '')) releaseName(name).catch(() => {}); throw e; }
+  store.set(K.player, PLAYER);
+  if (old && nameKey(old) !== nameKey(name)) releaseName(old).catch(() => {});
+}
 const cleanName = s => s.replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
 
 SCREENS.board = function () {
@@ -1454,9 +1495,7 @@ SCREENS.board = function () {
 async function joinBoard(name) {
   S.B.error = null;
   try {
-    PLAYER = { name };
-    await syncPlayer();
-    store.set(K.player, PLAYER);
+    await setNick(name);
     S.B.rename = false;
     const after = S.B.after;
     if (after === 'duels') { newDuel(); return; }
@@ -1464,14 +1503,14 @@ async function joinBoard(name) {
     loadBoard();
   } catch (e) {
     PLAYER = store.get(K.player, null);
-    S.B.error = /403/.test(e.message) ? NICK_REFUSED : 'Nepovedlo se připojit. Zkontroluj internet.'; render();
+    S.B.error = nickError(e) || 'Nepovedlo se připojit. Zkontroluj internet.'; render();
   }
 }
 async function leaveBoard() {
   if (!confirm('Opravdu odejít ze žebříčku? Tvoje jméno a body z něj zmizí.')) return;
   try {
     const a = await fbToken();
-    await Promise.all([fsCall('DELETE', `players/${a.uid}`), fsCall('DELETE', `weeks/${isoWeek()}/players/${a.uid}`)]);
+    await Promise.all([fsCall('DELETE', `players/${a.uid}`), fsCall('DELETE', `weeks/${isoWeek()}/players/${a.uid}`), releaseName(PLAYER.name)]);
     PLAYER = null; store.del(K.player); go('home');
   } catch (e) { alert('Nepovedlo se, zkus to znovu.'); }
 }
@@ -1522,6 +1561,7 @@ async function finishDuel(L) {
   go('duel', { D: { id: d.id, loading: true, justPlayed: { score: d.score, ms: d.ms, n: L.total } } });
   confetti(); beep(true);
   try {
+    await ensureName();
     const a = await fbToken();
     const now = new Date();
     if (d.create) {
@@ -1531,7 +1571,7 @@ async function finishDuel(L) {
     rememberDuel({ id: d.id, by: d.byName, at: Date.now() });
     await loadDuel(d.id);
   } catch (e) {
-    S.D.loading = false; S.D.error = 'Výsledek se nepodařilo uložit. Zkontroluj internet.'; render();
+    S.D.loading = false; S.D.error = e.message === 'taken' ? 'Tvoji přezdívku mezitím obsadil někdo jiný. Změň si ji v Žebříčku.' : 'Výsledek se nepodařilo uložit. Zkontroluj internet.'; render();
   }
 }
 async function loadDuel(id) {
@@ -1658,14 +1698,12 @@ function onboardNext() {
 async function onboardNick(name) {
   S.O.saving = true; S.O.error = null; render();
   try {
-    PLAYER = { name };
-    await syncPlayer();
-    store.set(K.player, PLAYER);
+    await setNick(name);
     S.O.saving = false;
     onboardNext();
   } catch (e) {
     PLAYER = null;
-    S.O.saving = false; S.O.error = /403/.test(e.message) ? NICK_REFUSED : 'Nepovedlo se připojit. Zkontroluj internet, nebo to přeskoč a nastav později v Žebříčku.'; render();
+    S.O.saving = false; S.O.error = nickError(e) || 'Nepovedlo se připojit. Zkontroluj internet, nebo to přeskoč a nastav později v Žebříčku.'; render();
   }
 }
 
@@ -1891,12 +1929,14 @@ $app.addEventListener('submit', e => {
     const name = cleanName(e.target.nick.value);
     if (name.length < 2) { e.target.nick.focus(); return; }
     if (badName(name)) { S.O.error = NICK_REFUSED; render(); return; }
+    if (nameKey(name).length < 2) { S.O.error = NICK_SHORT; render(); return; }
     onboardNick(name); return;
   }
   if (S.screen === 'board') {
     const name = cleanName(e.target.nick.value);
     if (name.length < 2) { e.target.nick.focus(); return; }
     if (badName(name)) { S.B.error = NICK_REFUSED; render(); return; }
+    if (nameKey(name).length < 2) { S.B.error = NICK_SHORT; render(); return; }
     joinBoard(name); return;
   }
   if (S.screen !== 'lesson') return;
