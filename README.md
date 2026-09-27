@@ -26,3 +26,16 @@ Then open http://localhost:8000.
 
 ## Deploy
 Any static host works: GitHub Pages (Settings → Pages → deploy from `main`, root), Vercel, or Netlify.
+
+## Tests
+Every pull request runs the checks in `.github/workflows/tests.yml`:
+- the nickname filter's word-list tests (`node tools/nickfilter.mjs --test`) and a check that the generated filter in `index.html` / `firestore.rules` is up to date;
+- Playwright end-to-end tests in `tests/specs/` (lessons, exam, onboarding, leaderboard, duels, Atlas, photos, easter egg). Wikipedia, Firebase and the CDN are mocked, so no network is needed.
+
+Run locally:
+```
+cd tests
+npm ci
+npx playwright install chromium
+npx playwright test
+```

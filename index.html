@@ -722,13 +722,15 @@ function toggleEgg() {
   }
   return true;
 }
-let eggTaps = [], eggTimer = null, eggSuppressClick = false;
+let eggTaps = [], eggTimer = null, eggLongPress = false, eggSuppressUntil = 0;
 document.addEventListener('pointerdown', e => {
   if (!e.target.closest('.pic[data-chimp]')) return;
   clearTimeout(eggTimer);
-  eggTimer = setTimeout(() => { eggTimer = null; if (toggleEgg()) { eggSuppressClick = true; eggTaps = []; } }, 450);
+  eggTimer = setTimeout(() => { eggTimer = null; if (toggleEgg()) { eggLongPress = true; eggTaps = []; } }, 450);
 });
 document.addEventListener('pointerup', e => {
+  // swallow only the click that belongs to the long press itself
+  if (eggLongPress) { eggLongPress = false; eggSuppressUntil = Date.now() + 400; }
   const wasPress = eggTimer !== null;
   clearTimeout(eggTimer); eggTimer = null;
   if (!wasPress || !e.target.closest('.pic[data-chimp]')) return;
@@ -737,7 +739,7 @@ document.addEventListener('pointerup', e => {
   if (eggTaps.length >= 3 && toggleEgg()) eggTaps = [];
 });
 document.addEventListener('pointercancel', () => { clearTimeout(eggTimer); eggTimer = null; });
-document.addEventListener('click', e => { if (eggSuppressClick) { eggSuppressClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('click', e => { if (Date.now() < eggSuppressUntil && e.target.closest('.pic[data-chimp]')) { eggSuppressUntil = 0; e.stopPropagation(); e.preventDefault(); } }, true);
 document.addEventListener('contextmenu', e => { if (e.target.closest('.pic[data-chimp]')) e.preventDefault(); });
 
 const PRAISE = ['Výborně!', 'Super!', 'Paráda!', 'Skvělé!', 'Přesně tak!', 'Jde ti to!', 'Bezva!'];
