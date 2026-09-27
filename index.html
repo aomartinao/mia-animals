@@ -1587,8 +1587,16 @@ async function fetchBoard(tab) {
   const rows = await fsCall('POST', `${parent}:runQuery`, {
     structuredQuery: { from: [{ collectionId: 'players' }], orderBy: [{ field: { fieldPath: field }, direction: 'DESCENDING' }], limit: 100 },
   });
-  return (rows || []).filter(r => r.document).map(r => ({ uid: r.document.name.split('/').pop(), ...fsRead(r.document.fields) }))
-    .sort((x, y) => (y[field] - x[field]) || ((y.xp || 0) - (x.xp || 0)));
+  let list = (rows || []).filter(r => r.document).map(r => ({ uid: r.document.name.split('/').pop(), ...fsRead(r.document.fields) }));
+  // Entries left over from before nicknames were unique: when a name shows up more than once, keep only its owner.
+  const seen = {};
+  for (const r of list) { const k = nameKey(r.name || ''); seen[k] = (seen[k] || 0) + 1; }
+  const dup = Object.keys(seen).filter(k => k && seen[k] > 1);
+  if (dup.length) {
+    const owners = Object.fromEntries(await Promise.all(dup.map(async k => [k, await nameOwner(k).catch(() => undefined)])));
+    list = list.filter(r => { const k = nameKey(r.name || ''); return !(k in owners) || owners[k] === undefined || owners[k] === r.uid; });
+  }
+  return list.sort((x, y) => (y[field] - x[field]) || ((y.xp || 0) - (x.xp || 0)));
 }
 async function loadBoard() {
   S.B.loading = true; S.B.error = null; render();

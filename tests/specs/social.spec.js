@@ -120,3 +120,19 @@ test('feedback: kids send an idea from home', async ({ browser }) => {
   expect(docs.map(f => f.text.stringValue)).toEqual(['Přidejte prosím zvuky zvířat!']);
   expect(docs[0].ctx.stringValue).toContain('localhost');
 });
+
+test('board hides old duplicate entries of a nickname that now belongs to someone else', async ({ browser }) => {
+  const fb = new FakeFirebase();
+  const doc = (name, xp) => ({ fields: { name: { stringValue: name }, xp: { integerValue: String(xp) }, known: { integerValue: '0' }, updated: { timestampValue: new Date().toISOString() } } });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await setupMocks(ctx, { firebase: fb });
+  const page = await ctx.newPage();
+  await openApp(page);
+  const week = await page.evaluate(() => isoWeek());
+  for (const [uid, xp] of [['old1', 103], ['old2', 0]]) { fb.db.set(`players/${uid}`, doc('Gandalf', xp)); fb.db.set(`weeks/${week}/players/${uid}`, doc('Gandalf', xp)); }
+  await page.click('[data-act=board]');
+  await page.fill('input[name=nick]', 'Gandalf');   // freed name, now claimed by this player
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.lb-row.me');
+  expect(await page.locator('.lb-row').allInnerTexts()).toHaveLength(1);
+});
