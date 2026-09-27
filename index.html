@@ -279,7 +279,7 @@
   .search-empty { text-align: center; color: var(--muted); font-weight: 700; padding: 30px 0; }
   .noscroll { overflow: hidden; }
   .detail { position: fixed; inset: 0; z-index: 60; background: var(--bg); overflow-y: auto; animation: rise .25s cubic-bezier(.2,.8,.2,1); }
-  .hero-photo { position: relative; height: min(62vh, 560px); background: #000; }
+  .hero-photo { position: relative; height: clamp(220px, calc(100dvh - 360px), 560px); background: #000; }
   .carousel { display: flex; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
   .carousel::-webkit-scrollbar { display: none; }
   .pic.slide { flex: none; width: 100%; height: 100%; aspect-ratio: auto !important; border-radius: 0; box-shadow: none; scroll-snap-align: center; overflow: hidden; }
@@ -288,9 +288,13 @@
   .cdots i.on { width: 20px; border-radius: 4px; background: #fff; }
   .detail-x { position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 12px; background: rgba(0,0,0,.45); color: #fff;
     -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-  .detail-body { max-width: 640px; margin: 0 auto; padding: 4px 16px calc(24px + env(safe-area-inset-bottom)); }
+  .detail-body { max-width: 640px; margin: 0 auto; padding: 4px 16px 0; }
+  .detail-body .intro-name { margin-top: 12px; }
+  .detail-close { position: sticky; bottom: 0; max-width: 640px; margin: 8px auto 0; padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--bg) 70%, transparent); }
   .detail-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
   .detail-actions a { text-decoration: none; }
+  .detail-actions .know-btn { font-size: 13px; padding: 7px 12px; }
   .intro-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
   .intro-head .badge { margin-bottom: 0; }
   .know-btn { flex: none; border: 1px solid var(--line-d); background: rgba(255,255,255,.06); color: var(--muted); border-radius: 999px;
@@ -1086,14 +1090,15 @@ function atlasModal() {
     <div class="detail-body">
       <div class="intro-name">${nameHtml(a)} ${speakBtn(a)}</div>
       <div class="intro-sub">${esc(a.la)} · ${g.icon} ${g.name}</div>
-      <p class="center small muted">Viděno ${p.s}×, správně ${p.c}×, špatně ${p.w}×</p>
-      ${p.done ? `<p class="center mastered-note">✓ Umíš na 100 %, v lekcích se už neukazuje</p>` : ''}
-      <div class="detail-actions"><button class="btn ${p.done ? '' : 'ghost'} small" data-act="toggleMastered">${p.done ? '↩️ Vrátit do procvičování' : '✓ Umím na 100 %'}</button></div>
+      <p class="center small muted" style="margin:6px 0">Viděno ${p.s}×, správně ${p.c}×, špatně ${p.w}×</p>
+      ${p.done ? `<p class="center mastered-note">✓ Znáš na 100 %, v lekcích se už neukazuje</p>` : ''}
       <div class="detail-actions">
-        ${list.length ? `<button class="btn ghost small" data-act="badImg" title="Fotka nesedí? Skryj ji.">🚫 Tahle fotka nesedí</button>` : ''}
-        <a class="btn ghost small" href="https://cs.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">📖 Wikipedie</a>
+        <button class="know-btn" data-act="toggleMastered">${p.done ? '↩️ Vrátit do procvičování' : '✓ Tohle znám'}</button>
+        ${list.length ? `<button class="know-btn" data-act="badImg" title="Fotka nesedí? Skryj ji.">🚫 Fotka nesedí</button>` : ''}
+        <a class="know-btn" href="https://cs.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">📖 Wikipedie</a>
       </div>
-      <button class="btn primary wide" style="margin-top:12px" data-act="closeModal">Zavřít</button>
+    </div>
+    <div class="detail-close"><button class="btn primary wide" data-act="closeModal">Zavřít</button></div>
     </div>
   </div>`;
 }
