@@ -102,7 +102,9 @@ export class FakeFirebase {
  * Mock all network the app uses. `photos(host, title, index)` returns a
  * fixture file name (or null) for each Wikipedia lookup.
  */
-export async function setupMocks(context, { photos = defaultPhotos, firebase = new FakeFirebase(), onboarded = true } = {}) {
+export async function setupMocks(context, { photos = defaultPhotos, firebase = new FakeFirebase(), onboarded = true, lang = 'cs' } = {}) {
+  // Tests run in Czech unless they ask otherwise (lang: 'en', or null to use the browser language).
+  if (lang) await context.addInitScript(l => { if (!localStorage.getItem('zv-lang-v1')) localStorage.setItem('zv-lang-v1', JSON.stringify(l)); }, lang);
   if (onboarded) await context.addInitScript(() => localStorage.setItem('zv-onboarded-v1', 'true'));
   await context.route(/cdn\.jsdelivr\.net\/npm\/smartcrop/, r => r.fulfill({ contentType: 'application/javascript', body: SMARTCROP }));
   await context.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));

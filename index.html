@@ -14,7 +14,11 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/smartcrop@2.0.5/smartcrop.js" async onload="window.focusImg && document.querySelectorAll('.pic img').forEach(focusImg)"></script>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦊</text></svg>">
+<!-- Real image files, so password managers and bookmarks can fetch the fox (they can't use an inline SVG) -->
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<meta name="application-name" content="Poznávačka zvířat">
+<link rel="alternate icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦊</text></svg>">
 <style>
   /* ===== Poznávačka v2: dark-first, glass + bento, tactile ===== */
   :root {
@@ -329,19 +333,29 @@
 <script>
 'use strict';
 
+/* Language: the whole app is either Czech or English (UI and animal names). */
+const LANG = (() => {
+  try { const v = JSON.parse(localStorage.getItem('zv-lang-v1')); if (v === 'cs' || v === 'en') return v; } catch (e) { /* ignore */ }
+  return /^(cs|sk)\b/i.test(navigator.language || '') ? 'cs' : 'en';
+})();
+const EN = LANG === 'en';
+const t = (cs, en) => EN ? en : cs;
+document.documentElement.lang = LANG;
+document.title = t('Poznávačka zvířat', 'Animal Quiz');
+
 /* ------------------------------------------------------------------ *
  *  DATA: the school list (skupina | český název | latinský název)     *
  *  Latin names are used to look up photos on English Wikipedia; the   *
  *  Czech name is looked up on Czech Wikipedia as a second source.     *
  * ------------------------------------------------------------------ */
 const GROUPS = [
-  { id: 'kru', name: 'Kruhoústí',     icon: '🌀', color: '#8e7cc3' },
-  { id: 'par', name: 'Paryby',        icon: '🦈', color: '#3d85c6' },
-  { id: 'ryb', name: 'Ryby',          icon: '🐟', color: '#1cb0f6' },
-  { id: 'obo', name: 'Obojživelníci', icon: '🐸', color: '#58cc02' },
-  { id: 'pla', name: 'Plazi',         icon: '🦎', color: '#ff9600' },
-  { id: 'pta', name: 'Ptáci',         icon: '🐦', color: '#e6a000' },
-  { id: 'sav', name: 'Savci',         icon: '🐘', color: '#ea2b2b' },
+  { id: 'kru', name: t('Kruhoústí', 'Jawless fish'),         icon: '🌀', color: '#8e7cc3' },
+  { id: 'par', name: t('Paryby', 'Cartilaginous fish'),       icon: '🦈', color: '#3d85c6' },
+  { id: 'ryb', name: t('Ryby', 'Bony fish'),                  icon: '🐟', color: '#1cb0f6' },
+  { id: 'obo', name: t('Obojživelníci', 'Amphibians'),        icon: '🐸', color: '#58cc02' },
+  { id: 'pla', name: t('Plazi', 'Reptiles'),                  icon: '🦎', color: '#ff9600' },
+  { id: 'pta', name: t('Ptáci', 'Birds'),                     icon: '🐦', color: '#e6a000' },
+  { id: 'sav', name: t('Savci', 'Mammals'),                   icon: '🐘', color: '#ea2b2b' },
 ];
 
 const RAW = `
@@ -494,10 +508,164 @@ sav|pásovec devítipásý|Dasypus novemcinctus
 sav|lenochod tříprstý|Bradypus tridactylus
 `;
 
+// English names (český název | English name | other accepted English names). British spelling, IOC for birds.
+const EN_RAW = `
+mihule potoční|European brook lamprey|brook lamprey
+máčka skvrnitá|small-spotted catshark|lesser spotted dogfish;catshark
+žralok bílý|great white shark|white shark
+žralok obrovský|whale shark|
+kladivoun obecný|smooth hammerhead|hammerhead shark;hammerhead
+manta obrovská|giant manta ray|giant oceanic manta ray;manta ray;manta
+chiméra podivná|rabbit fish|rabbitfish;chimaera
+kapr obecný|common carp|carp
+lín obecný|tench|
+candát obecný|zander|pikeperch
+sumec velký|wels catfish|catfish;sheatfish
+štika obecná|northern pike|pike
+amur bílý|grass carp|
+pstruh duhový|rainbow trout|
+ďas mořský|angler|anglerfish;monkfish
+platýs velký|European plaice|plaice
+ropušnice obecná|red scorpionfish|scorpionfish
+sleď obecný|Atlantic herring|herring
+úhoř mořský|European conger|conger eel;conger
+vlk mořský|Atlantic wolffish|wolffish;sea wolf
+čolek obecný|smooth newt|common newt
+mlok skvrnitý|fire salamander|
+skokan zelený|edible frog|common water frog;water frog
+skokan hnědý|common frog|grass frog
+kuňka žlutobřichá|yellow-bellied toad|
+ropucha obecná|common toad|European toad
+ropucha zelená|European green toad|green toad
+blatnice skvrnitá|common spadefoot|spadefoot toad;garlic toad
+rosnička zelená|European tree frog|tree frog
+velemlok čínský|Chinese giant salamander|
+želva žlutohnědá|Greek tortoise|spur-thighed tortoise
+želva sloní|Galápagos tortoise|Galápagos giant tortoise;giant tortoise
+kareta pravá|hawksbill sea turtle|hawksbill turtle;hawksbill
+kožatka velká|leatherback sea turtle|leatherback turtle;leatherback
+krokodýl nilský|Nile crocodile|
+aligátor severoamerický|American alligator|alligator
+kajman šironosý|broad-snouted caiman|
+gaviál indický|gharial|gavial
+ještěrka obecná|sand lizard|
+slepýš křehký|slow worm|slowworm;slow-worm;common slow worm
+agama límcová|frilled lizard|frill-necked lizard
+chameleon jemenský|veiled chameleon|Yemen chameleon
+varan komodský|Komodo dragon|
+leguán zelený|green iguana|iguana
+bazilišek zelený|plumed basilisk|green basilisk;double-crested basilisk
+gekon zední|common wall gecko|Moorish gecko;wall gecko
+scink šalomounský|Solomon Islands skink|prehensile-tailed skink;monkey-tailed skink
+užovka obojková|grass snake|
+užovka hladká|smooth snake|
+anakonda velká|green anaconda|anaconda
+krajta královská|royal python|ball python
+kobra indická|Indian cobra|spectacled cobra
+hroznýš královský|boa constrictor|boa
+chřestýš texaský|western diamondback rattlesnake|rattlesnake
+korálovka královská|Sonoran mountain kingsnake|mountain kingsnake;Arizona mountain kingsnake
+mamba černá|black mamba|
+zmije obecná|adder|common European adder;European adder;common adder;common European viper;viper
+potápka roháč|great crested grebe|
+volavka popelavá|grey heron|gray heron
+čáp bílý|white stork|
+kachna divoká|mallard|
+husa velká|greylag goose|graylag goose
+labuť velká|mute swan|
+káně lesní|common buzzard|buzzard
+orel skalní|golden eagle|
+jestřáb lesní|Eurasian goshawk|northern goshawk;goshawk
+poštolka obecná|common kestrel|kestrel;Eurasian kestrel
+sup bělohlavý|griffon vulture|Eurasian griffon
+koroptev polní|grey partridge|gray partridge;partridge
+křepelka polní|common quail|quail
+bažant obecný|common pheasant|pheasant
+tetřev hlušec|western capercaillie|capercaillie
+páv korunkatý|Indian peafowl|peacock;peafowl
+lyska černá|Eurasian coot|coot
+slípka zelenonohá|common moorhen|moorhen
+čejka chocholatá|northern lapwing|lapwing
+racek chechtavý|black-headed gull|
+holub hřivnáč|common wood pigeon|wood pigeon
+hrdlička zahradní|Eurasian collared dove|collared dove
+sova pálená|western barn owl|barn owl
+výr velký|Eurasian eagle-owl|eagle owl
+kalous ušatý|long-eared owl|
+sýček obecný|little owl|
+puštík obecný|tawny owl|
+kukačka obecná|common cuckoo|cuckoo
+dudek chocholatý|Eurasian hoopoe|hoopoe
+rorýs obecný|common swift|swift
+kolibřík purpurový|violet sabrewing|
+ledňáček říční|common kingfisher|kingfisher
+datel černý|black woodpecker|
+žluna zelená|European green woodpecker|green woodpecker
+strakapoud velký|great spotted woodpecker|
+skřivan polní|Eurasian skylark|skylark
+vlaštovka obecná|barn swallow|swallow
+jiřička obecná|western house martin|house martin;common house martin
+konipas bílý|white wagtail|pied wagtail
+ťuhýk obecný|red-backed shrike|
+kos černý|common blackbird|blackbird;Eurasian blackbird
+sýkora modřinka|Eurasian blue tit|blue tit
+pěnkava obecná|Eurasian chaffinch|chaffinch;common chaffinch
+stehlík obecný|European goldfinch|goldfinch
+vrabec domácí|house sparrow|sparrow
+špaček obecný|common starling|starling;European starling
+sojka obecná|Eurasian jay|jay
+straka obecná|Eurasian magpie|magpie
+havran polní|rook|
+vrána obecná|carrion crow|crow
+brkoslav severní|Bohemian waxwing|waxwing
+kormorán velký|great cormorant|cormorant
+plameňák růžový|greater flamingo|flamingo
+ježura australská|short-beaked echidna|echidna
+ptakopysk podivný|platypus|duck-billed platypus
+klokan obrovský|eastern grey kangaroo|eastern gray kangaroo;kangaroo
+ďábel medvědovitý|Tasmanian devil|
+koala medvídkovitý|koala|
+ježek západní|European hedgehog|hedgehog
+krtek obecný|European mole|mole
+netopýr velký|greater mouse-eared bat|
+kočkodan zelený|green monkey|
+šimpanz učenlivý|chimpanzee|common chimpanzee;chimp
+orangutan bornejský|Bornean orangutan|orangutan
+gorila nížinná|western gorilla|western lowland gorilla;lowland gorilla;gorilla
+člověk rozumný|human|human being;modern human
+myš domácí|house mouse|mouse
+sysel obecný|European ground squirrel|European souslik
+bobr evropský|Eurasian beaver|European beaver;beaver
+medvěd lední|polar bear|
+tchoř tmavý|European polecat|polecat
+lev pustinný|lion|
+tygr džunglový|tiger|
+šakal obecný|golden jackal|jackal
+kojot prériový|coyote|
+tuleň obecný|harbour seal|harbor seal;common seal
+lachtan hřivnatý|South American sea lion|sea lion
+mrož lední|walrus|
+slon indický|Asian elephant|Indian elephant
+slon africký|African bush elephant|African elephant
+nosorožec dvourohý|black rhinoceros|black rhino
+zebra stepní|plains zebra|common zebra;zebra
+zubr evropský|European bison|wisent
+buvol indický|wild water buffalo|Asian buffalo;Asiatic buffalo;wild buffalo
+velryba grónská|bowhead whale|Greenland right whale
+delfín obecný|common dolphin|short-beaked common dolphin
+plejtvák obrovský|blue whale|
+kosatka dravá|orca|killer whale
+pásovec devítipásý|nine-banded armadillo|armadillo
+lenochod tříprstý|pale-throated sloth|three-toed sloth;pale-throated three-toed sloth
+`;
+const EN_NAMES = Object.fromEntries(EN_RAW.trim().split('\n').map(l => { const [cz, en, alt] = l.split('|'); return [cz, [en, ...(alt ? alt.split(';') : [])]]; }));
+// id and cz stay Czech (storage keys, duels, photo lookup); name is what the player sees and types.
 const ANIMALS = RAW.trim().split('\n').map(line => {
   const [g, cz, la] = line.split('|').map(s => s.trim());
   const sp = cz.indexOf(' ');
-  return { id: cz, g, cz, la, first: cz.slice(0, sp), second: cz.slice(sp + 1) };
+  const en = EN_NAMES[cz] || [cz];
+  return { id: cz, g, cz, la, first: cz.slice(0, sp), second: cz.slice(sp + 1),
+    name: EN ? en[0] : cz, answers: EN ? en : [cz], genus: la.split(' ')[0] };
 });
 const GROUP_BY_ID = Object.fromEntries(GROUPS.map(g => [g.id, g]));
 
@@ -680,11 +848,11 @@ const $app = document.getElementById('app');
 let WHOLE = store.get(K.whole, false);
 document.body.classList.toggle('whole-photos', WHOLE);
 const EXPAND_ICON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v7M9 5l3-3 3 3M12 22v-7M9 19l3 3 3-3M2 12h7M5 9l-3 3 3 3M22 12h-7M19 9l3 3-3 3"/></svg>';
-const photoLabel = () => WHOLE ? '✂️ Ořez' : EXPAND_ICON + ' Celé';
+const photoLabel = () => WHOLE ? '✂️ ' + t('Ořez', 'Crop') : EXPAND_ICON + ' ' + t('Celé', 'Whole');
 const GOOGLE_G = '<svg class="g-logo" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
-const googleBtn = sub => `<button class="btn wide google-btn" data-act="google"><span class="g-row">${GOOGLE_G}Přihlásit se přes Google</span>${sub ? `<span class="small">${sub}</span>` : ''}</button>`;
-const soundBtn = (cls = 'x') => `<button class="${cls}" data-act="sound" title="${SOUND ? 'Vypnout zvuk' : 'Zapnout zvuk'}">${SOUND ? '🔊' : '🔇'}</button>`;
-const photoBtn = () => `<button class="photo-mode" data-act="photoMode" title="Přepnout ořez / celé fotky">${photoLabel()}</button>`;
+const googleBtn = sub => `<button class="btn wide google-btn" data-act="google"><span class="g-row">${GOOGLE_G}${t('Přihlásit se přes Google', 'Sign in with Google')}</span>${sub ? `<span class="small">${sub}</span>` : ''}</button>`;
+const soundBtn = (cls = 'x') => `<button class="${cls}" data-act="sound" title="${SOUND ? t('Vypnout zvuk', 'Sound off') : t('Zapnout zvuk', 'Sound on')}">${SOUND ? '🔊' : '🔇'}</button>`;
+const photoBtn = () => `<button class="photo-mode" data-act="photoMode" title="${t('Přepnout ořez / celé fotky', 'Crop or whole photos')}">${photoLabel()}</button>`;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const sample = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -698,7 +866,15 @@ function lev(a, b) {
     d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
   return d[m][n];
 }
+// English: any accepted name counts; hyphens, apostrophes and accents don't matter.
+const enKey = s => strip(s).replace(/[-'’.]/g, ' ').replace(/\s+/g, ' ').trim();
 function checkTyped(input, a) {
+  if (EN) {
+    const x = enKey(input), names = a.answers.map(enKey);
+    if (names.includes(x)) return 'ok';
+    if (names.some(n => n.length > 5 && lev(x, n) <= (n.length > 12 ? 2 : 1))) return 'typo';
+    return 'wrong';
+  }
   if (norm(input) === norm(a.cz)) return 'ok';
   if (strip(input) === strip(a.cz)) return 'accent';
   if (strip(a.cz).length > 5 && lev(strip(input), strip(a.cz)) <= 1) return 'typo';
@@ -709,7 +885,7 @@ const imgPool = () => pool().filter(hasImg);
 // "Umím na 100 %": taken out of lessons and flashcards (still in the exam and duels)
 const isKnown = a => prog(a).b >= MASTER || !!prog(a).done;
 const trainPool = () => imgPool().filter(a => !prog(a).done);
-const ALL_DONE_MSG = 'Všechna zvířata ve vybraných skupinách umíš na 100 % 🎉 Vyber další skupiny, nebo si dej Zkoušku nanečisto.';
+const ALL_DONE_MSG = t('Všechna zvířata ve vybraných skupinách umíš na 100 % 🎉 Vyber další skupiny, nebo si dej Zkoušku nanečisto.', 'You know every animal in the chosen groups 100 % 🎉 Pick more groups, or try the Practice test.');
 function setMastered(a, on) {
   const p = prog(a);
   if (on) { p.done = 1; p.b = 5; } else { p.done = 0; p.b = Math.min(p.b, MASTER - 1); }
@@ -747,7 +923,7 @@ function beep(ok) {
     });
   } catch (e) { /* no audio */ }
 }
-function say(text, lang = 'cs-CZ') {
+function say(text, lang = t('cs-CZ', 'en-GB')) {
   if (!SOUND || !('speechSynthesis' in window)) return;
   try {
     const u = new SpeechSynthesisUtterance(text);
@@ -776,7 +952,7 @@ function confetti(em = ['🎉', '⭐', '🐸', '🦊', '🐟', '🦜', '🐘', '
 const CHIMP = 'šimpanz učenlivý';
 const EGG_NAME = 'Mia, la mia scimmia';
 let EGG = false;
-const nameHtml = a => EGG && a.id === CHIMP ? `<span class="egg">${EGG_NAME} 🐒❤️</span>` : esc(a.cz);
+const nameHtml = a => EGG && a.id === CHIMP ? `<span class="egg">${EGG_NAME} 🐒❤️</span>` : esc(a.name);
 function eggVisible() {
   if (S.screen === 'atlas') return !!S.open;
   if (S.screen === 'cards') return S.C.flipped;
@@ -814,7 +990,7 @@ document.addEventListener('pointercancel', () => { clearTimeout(eggTimer); eggTi
 document.addEventListener('click', e => { if (Date.now() < eggSuppressUntil && e.target.closest('.pic[data-chimp]')) { eggSuppressUntil = 0; e.stopPropagation(); e.preventDefault(); } }, true);
 document.addEventListener('contextmenu', e => { if (e.target.closest('.pic[data-chimp]')) e.preventDefault(); });
 
-const PRAISE = ['Výborně!', 'Super!', 'Paráda!', 'Skvělé!', 'Přesně tak!', 'Jde ti to!', 'Bezva!'];
+const PRAISE = EN ? ['Great!', 'Super!', 'Awesome!', 'Brilliant!', 'Exactly!', 'Nailed it!', 'Nice one!'] : ['Výborně!', 'Super!', 'Paráda!', 'Skvělé!', 'Přesně tak!', 'Jde ti to!', 'Bezva!'];
 function picHtml(url, a, cls = '') {
   const g = a ? GROUP_BY_ID[a.g] : null;
   return `<div class="pic ${cls}"${a && a.id === CHIMP ? ' data-chimp' : ''}${url ? ` style="--pic:url(&quot;${esc(url)}&quot;)"` : ''}>${url
@@ -871,8 +1047,8 @@ function imgError(img, icon) {
   img.replaceWith(Object.assign(document.createElement('span'), { className: 'fallback', textContent: icon }));
 }
 const speakBtn = a => EGG && a.id === CHIMP
-  ? `<button class="speak" data-say="${EGG_NAME}" data-lang="it-IT" title="Přečíst nahlas">🔊</button>`
-  : `<button class="speak" data-say="${esc(a.cz)}" title="Přečíst nahlas">🔊</button>`;
+  ? `<button class="speak" data-say="${EGG_NAME}" data-lang="it-IT" title="${t('Přečíst nahlas', 'Read aloud')}">🔊</button>`
+  : `<button class="speak" data-say="${esc(a.name)}" title="${t('Přečíst nahlas', 'Read aloud')}">🔊</button>`;
 function dots(a) { const b = prog(a).b; return `<div class="dots">${[1, 2, 3, 4, 5].map(i => `<i class="${b >= i ? 'on' : ''}"></i>`).join('')}</div>`; }
 
 /* ------------------------------------------------------------------ *
@@ -880,8 +1056,9 @@ function dots(a) { const b = prog(a).b; return `<div class="dots">${[1, 2, 3, 4,
  * ------------------------------------------------------------------ */
 function distractors(a, n, { needImg = false, hard = false } = {}) {
   const others = ANIMALS.filter(x => x !== a && (!needImg || hasImg(x)));
-  const sameGenus = shuffle(others.filter(x => x.first === a.first));
-  const sameGroup = shuffle(others.filter(x => x.g === a.g && x.first !== a.first));
+  const kin = x => EN ? x.genus : x.first;   // Czech first word, or the Latin genus for English names
+  const sameGenus = shuffle(others.filter(x => kin(x) === kin(a)));
+  const sameGroup = shuffle(others.filter(x => x.g === a.g && kin(x) !== kin(a)));
   const rest = shuffle(others.filter(x => x.g !== a.g));
   const order = hard ? [...sameGenus, ...sameGroup, ...rest] : [...sameGroup.slice(0, 2), ...sameGenus, ...sameGroup.slice(2), ...rest];
   return uniqBy(order, x => x.id).slice(0, n);
@@ -905,6 +1082,7 @@ function makeQuestion(a, level) {
   else if (level === 2) types = ['epithet', 'pickNameHard', 'type', 'pickImage'];
   else types = ['type', 'type', 'epithet', 'pickNameHard'];
   let type = sample(types);
+  if (EN && type === 'epithet') type = 'pickNameHard';   // "kapr ___" only makes sense with Czech names
   const q = { a, type, img: pickImg(a) };
   if (type === 'pickName' || type === 'pickNameHard') {
     q.options = shuffle([a, ...distractors(a, 3, { hard: type === 'pickNameHard' })]);
@@ -957,7 +1135,7 @@ function render() {
 }
 
 const SCREENS = {
-  loading: () => `<div class="loading"><div class="spin">🦊</div><h2>Načítám obrázky zvířat…</h2><p class="muted">Poprvé to chvilku trvá.</p></div>`,
+  loading: () => `<div class="loading"><div class="spin">🦊</div><h2>${t('Načítám obrázky zvířat…', 'Loading animal photos…')}</h2><p class="muted">${t('Poprvé to chvilku trvá.', 'The first time takes a moment.')}</p></div>`,
 
   home() {
     const all = ANIMALS.length;
@@ -968,55 +1146,56 @@ const SCREENS = {
     const dis = p.length ? '' : 'disabled';
     return `
     <div class="top">
-      <div class="brand"><span class="logo">🦊</span>Poznávačka</div>
-      <div class="stats"><span class="pillstat" title="Dny v řadě">🔥 ${currentStreak()}</span><span class="pillstat" title="Body">⭐ ${STATS.xp}</span></div>
+      <div class="brand"><span class="logo">🦊</span>${t('Poznávačka', 'Animal Quiz')}</div>
+      <div class="stats"><span class="pillstat" title="${t('Dny v řadě', 'Day streak')}">🔥 ${currentStreak()}</span><span class="pillstat" title="${t('Body', 'Points')}">⭐ ${STATS.xp}</span></div>
     </div>
-    <div class="overall" title="Celkový pokrok">
-      <div class="ov-head"><span class="ov-num">${known}<small> / ${all}</small></span><span class="ov-label">zvířat umíš</span><span class="ov-pct">${Math.round(pct * 100)} %</span></div>
+    <div class="overall" title="${t('Celkový pokrok', 'Overall progress')}">
+      <div class="ov-head"><span class="ov-num">${known}<small> / ${all}</small></span><span class="ov-label">${t('zvířat umíš', 'animals known')}</span><span class="ov-pct">${Math.round(pct * 100)} %</span></div>
       <div class="ov-bar"><i style="width:${Math.max(pct * 100, known ? 2 : 0)}%"></i></div>
     </div>
-    ${IMG_STATE === 'failed' ? `<div class="warn">Nepodařilo se načíst obrázky z Wikipedie. Zkontroluj internet. <button class="btn ghost" data-act="retry">Zkusit znovu</button></div>` : ''}
+    ${IMG_STATE === 'failed' ? `<div class="warn">${t('Nepodařilo se načíst obrázky z Wikipedie. Zkontroluj internet.', 'Couldn’t load photos from Wikipedia. Check your internet.')} <button class="btn ghost" data-act="retry">${t('Zkusit znovu', 'Try again')}</button></div>` : ''}
 
-    <div class="section-title"><span>Co procvičuješ</span>
-      <button class="btn ghost small" data-act="toggleAll">${SELECTED.length === GROUPS.length ? 'Zrušit vše' : 'Vybrat vše'}</button></div>
+    <div class="section-title"><span>${t('Co procvičuješ', 'What you practise')}</span>
+      <button class="btn ghost small" data-act="toggleAll">${SELECTED.length === GROUPS.length ? t('Zrušit vše', 'Clear all') : t('Vybrat vše', 'Select all')}</button></div>
     <div class="groups">
       ${GROUPS.map(g => {
         const list = ANIMALS.filter(a => a.g === g.id);
         const k = list.filter(isKnown).length;
         return `<button class="group ${SELECTED.includes(g.id) ? 'on' : ''}" data-group="${g.id}" style="--gc:${g.color}">
-          <span class="gi">${g.icon}</span><span class="gtext"><span class="gname">${g.name}</span><span class="gcount">${k} / ${list.length} umíš</span></span>
+          <span class="gi">${g.icon}</span><span class="gtext"><span class="gname">${g.name}</span><span class="gcount">${k} / ${list.length} ${t('umíš', 'known')}</span></span>
           <i class="gbar" style="width:${k / list.length * 100}%"></i>
         </button>`;
       }).join('')}
     </div>
 
-    <div class="section-title"><span>Hraj</span><span class="small">${p.length} zvířat</span></div>
+    <div class="section-title"><span>${t('Hraj', 'Play')}</span><span class="small">${p.length} ${t('zvířat', 'animals')}</span></div>
     <div class="bento">
       <button class="tile t-lesson hero-tile span2" data-act="lesson" ${dis}>
         <span class="go">▶ Start</span><span class="ti">🎯</span>
-        <span class="tt">Lekce</span><span class="td">12 otázek · nová zvířata i opakování</span></button>
+        <span class="tt">${t('Lekce', 'Lesson')}</span><span class="td">${t('12 otázek · nová zvířata i opakování', '12 questions · new animals and review')}</span></button>
       <button class="tile t-cards" data-act="cards" ${dis}><span class="ti">🃏</span>
-        <span class="tt">Kartičky</span><span class="td">Víš, kdo to je?</span></button>
+        <span class="tt">${t('Kartičky', 'Flashcards')}</span><span class="td">${t('Víš, kdo to je?', 'Do you know who this is?')}</span></button>
       <button class="tile t-atlas" data-act="atlas"><span class="ti">📖</span>
-        <span class="tt">Atlas</span><span class="td">Všech ${all} zvířat</span></button>
+        <span class="tt">Atlas</span><span class="td">${t('Všech', 'All')} ${all} ${t('zvířat', 'animals')}</span></button>
       <button class="tile t-exam span2" data-act="exam" ${dis}><span class="ti">📝</span>
-        <span class="tt">Zkouška nanečisto</span><span class="td">Napiš celá jména a dostaň známku</span></button>
+        <span class="tt">${t('Zkouška nanečisto', 'Practice test')}</span><span class="td">${t('Napiš celá jména a dostaň známku', 'Type the full names and get a grade')}</span></button>
       <button class="tile t-board" data-act="board"><span class="ti">🏆</span>
-        <span class="tt">Žebříček</span><span class="td">${PLAYER ? esc(PLAYER.name) : 'Soutěž s kamarády'}</span></button>
+        <span class="tt">${t('Žebříček', 'Leaderboard')}</span><span class="td">${PLAYER ? esc(PLAYER.name) : t('Soutěž s kamarády', 'Compete with friends')}</span></button>
       <button class="tile t-duels" data-act="duels"><span class="ti">⚔️</span>
-        <span class="tt">Výzvy</span><span class="td">Souboj 1 na 1</span></button>
+        <span class="tt">${t('Výzvy', 'Challenges')}</span><span class="td">${t('Souboj 1 na 1', '1 on 1 duel')}</span></button>
     </div>
 
     <div class="foot">
-      ${!GOOGLE_OK ? '' : ACCOUNT ? `<div class="muted small account" style="font-weight:700;margin-bottom:8px">☁️ Pokrok se ukládá do účtu ${esc(ACCOUNT.email)}
-        <button class="btn ghost small" data-act="logout">Odhlásit</button></div>`
-      : `<div style="margin-bottom:10px">${googleBtn('Pokrok na mobilu i počítači')}</div>`}
-      <button class="btn wide" data-act="share" style="margin-bottom:10px">📤 Pošli apku kamarádům</button>
-      <button class="btn wide" data-act="feedback" style="margin-bottom:10px">💬 Nápad nebo chyba? Napiš Gandalfovi</button>
-      <button class="btn ghost small" data-act="sound">${SOUND ? '🔊 Zvuk zapnutý' : '🔇 Zvuk vypnutý'}</button>
-      <button class="btn ghost small" data-act="reset">Smazat pokrok</button>
-      ${noImg.length && IMG_STATE === 'ok' ? `<div class="muted small" style="margin-top:6px">Bez obrázku (nebudou v otázkách): ${noImg.map(a => esc(a.cz)).join(', ')}</div>` : ''}
-      <div class="credit">Fotky: Wikipedie / Wikimedia Commons</div>
+      ${!GOOGLE_OK ? '' : ACCOUNT ? `<div class="muted small account" style="font-weight:700;margin-bottom:8px">☁️ ${t('Pokrok se ukládá do účtu', 'Progress is saved to')} ${esc(ACCOUNT.email)}
+        <button class="btn ghost small" data-act="logout">${t('Odhlásit', 'Sign out')}</button></div>`
+      : `<div style="margin-bottom:10px">${googleBtn(t('Pokrok na mobilu i počítači', 'Your progress on phone and computer'))}</div>`}
+      <button class="btn wide" data-act="share" style="margin-bottom:10px">${t('📤 Pošli apku kamarádům', '📤 Send the app to friends')}</button>
+      <button class="btn wide" data-act="feedback" style="margin-bottom:10px">${t('💬 Nápad nebo chyba? Napiš Gandalfovi', '💬 Idea or bug? Write to Gandalf')}</button>
+      <button class="btn ghost small" data-act="sound">${SOUND ? '🔊 ' + t('Zvuk zapnutý', 'Sound on') : '🔇 ' + t('Zvuk vypnutý', 'Sound off')}</button>
+      <button class="btn ghost small" data-act="lang">${EN ? '🇨🇿 Česky' : '🇬🇧 English'}</button>
+      <button class="btn ghost small" data-act="reset">${t('Smazat pokrok', 'Reset progress')}</button>
+      ${noImg.length && IMG_STATE === 'ok' ? `<div class="muted small" style="margin-top:6px">${t('Bez obrázku (nebudou v otázkách)', 'No photo (left out of questions)')}: ${noImg.map(a => esc(a.name)).join(', ')}</div>` : ''}
+      <div class="credit">${t('Fotky: Wikipedie / Wikimedia Commons', 'Photos: Wikipedia / Wikimedia Commons')}</div>
     </div>`;
   },
 
@@ -1027,16 +1206,16 @@ const SCREENS = {
     const pct = L.done / L.total * 100;
     let body = '';
     if (it.type === 'intro') {
-      body = `<div class="intro-head"><span class="badge">Nové zvíře</span>${it.offerKnow ? `<button class="know-btn" data-act="mastered" title="Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)">✓ Tohle znám – už neukazovat</button>` : ''}</div>
+      body = `<div class="intro-head"><span class="badge">${t('Nové zvíře', 'New animal')}</span>${it.offerKnow ? `<button class="know-btn" data-act="mastered" title="${t('Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)', 'It leaves lessons and flashcards (stays in the test)')}">✓ ${t('Tohle znám – už neukazovat', 'I know this – don’t show again')}</button>` : ''}</div>
         ${picHtml(it.img, it.a, 'pop')}
         <div class="intro-name">${nameHtml(it.a)} ${speakBtn(it.a)}</div>
         <div class="intro-sub">${esc(it.a.la)} · ${GROUP_BY_ID[it.a.g].icon} ${GROUP_BY_ID[it.a.g].name}</div>
         <div class="spacer"></div>
-        <div class="feedback neutral"><button class="btn primary wide" data-act="next" autofocus>Pokračovat</button></div>`;
+        <div class="feedback neutral"><button class="btn primary wide" data-act="next" autofocus>${t('Pokračovat', 'Continue')}</button></div>`;
     } else {
       body = questionBody(it, L);
     }
-    return `<div class="lesson-top"><button class="x" data-act="quit" title="Ukončit">✕</button>
+    return `<div class="lesson-top"><button class="x" data-act="quit" title="${t('Ukončit', 'Quit')}">✕</button>
       <div class="bar"><i style="width:${pct}%"></i></div>${photoBtn()}${soundBtn()}
       ${L.exam || L.duel ? `<b class="small">${L.duel ? '⚔️ ' : ''}${L.done}/${L.total}</b>` : ''}</div>
       ${body}`;
@@ -1051,72 +1230,72 @@ const SCREENS = {
       const pts = L.points, max = L.total;
       const pc = pts / max * 100;
       const grade = pc >= 90 ? 1 : pc >= 75 ? 2 : pc >= 50 ? 3 : pc >= 30 ? 4 : 5;
-      const txt = ['', 'Výborně!', 'Chválitebně', 'Dobře', 'Dostatečně', 'Ještě potrénuj'][grade];
-      gradeHtml = `<div class="muted" style="font-weight:800">Známka</div><div class="grade" style="color:${grade <= 2 ? 'var(--green)' : grade === 3 ? 'var(--orange)' : 'var(--red)'}">${grade}</div>
-        <div style="font-weight:800">${txt} · ${pts % 1 ? pts.toFixed(1) : pts} z ${max} bodů</div>`;
+      const txt = (EN ? ['', 'Excellent!', 'Very good', 'Good', 'Pass', 'Keep practising'] : ['', 'Výborně!', 'Chválitebně', 'Dobře', 'Dostatečně', 'Ještě potrénuj'])[grade];
+      gradeHtml = `<div class="muted" style="font-weight:800">${t('Známka', 'Grade')}</div><div class="grade" style="color:${grade <= 2 ? 'var(--green)' : grade === 3 ? 'var(--orange)' : 'var(--red)'}">${grade}</div>
+        <div style="font-weight:800">${txt} · ${pts % 1 ? pts.toFixed(1) : pts} ${t('z', 'of')} ${max} ${t('bodů', 'points')}</div>`;
     }
     const mistakes = L.mistakes;
     return `<div class="center">
       <div class="big-emoji">${acc >= 90 ? '🏆' : acc >= 60 ? '🎉' : '💪'}</div>
-      <h1 style="color:var(--orange)">${L.exam ? 'Zkouška hotová!' : 'Lekce hotová!'}</h1>
+      <h1 style="color:var(--orange)">${L.exam ? t('Zkouška hotová!', 'Test done!') : t('Lekce hotová!', 'Lesson done!')}</h1>
       ${gradeHtml}
       <div class="results">
-        <div class="res" style="border-color:var(--orange)"><div class="rh" style="background:var(--orange)">Body</div><div class="rv">⭐ ${L.xp}</div></div>
-        <div class="res" style="border-color:var(--green)"><div class="rh" style="background:var(--green)">Přesnost</div><div class="rv">🎯 ${acc} %</div></div>
-        <div class="res" style="border-color:var(--red)"><div class="rh" style="background:var(--red)">Série</div><div class="rv">🔥 ${currentStreak()}</div></div>
+        <div class="res" style="border-color:var(--orange)"><div class="rh" style="background:var(--orange)">${t('Body', 'Points')}</div><div class="rv">⭐ ${L.xp}</div></div>
+        <div class="res" style="border-color:var(--green)"><div class="rh" style="background:var(--green)">${t('Přesnost', 'Accuracy')}</div><div class="rv">🎯 ${acc} %</div></div>
+        <div class="res" style="border-color:var(--red)"><div class="rh" style="background:var(--red)">${t('Série', 'Streak')}</div><div class="rv">🔥 ${currentStreak()}</div></div>
       </div>
-      ${mistakes.length ? `<div class="section-title"><span>Tahle si zopakuj</span></div>
-        <div class="mistakes">${mistakes.map(m => `<div class="mistake">${picHtml(m.img, m.a)}<div class="t"><b>${esc(m.a.cz)}</b>${m.answer ? `<s>${esc(m.answer)}</s>` : ''}</div></div>`).join('')}</div>` : ''}
+      ${mistakes.length ? `<div class="section-title"><span>${t('Tahle si zopakuj', 'Review these')}</span></div>
+        <div class="mistakes">${mistakes.map(m => `<div class="mistake">${picHtml(m.img, m.a)}<div class="t"><b>${esc(m.a.name)}</b>${m.answer ? `<s>${esc(m.answer)}</s>` : ''}</div></div>`).join('')}</div>` : ''}
       <div style="display:grid;gap:10px;margin-top:20px">
-        ${mistakes.length ? `<button class="btn orange wide" data-act="practiceMistakes">Procvičit chyby</button>` : ''}
-        <button class="btn primary wide" data-act="home" autofocus>Pokračovat</button>
-        <button class="btn ghost wide" data-act="board">🏆 ${PLAYER ? 'Jak jsem na tom v žebříčku?' : 'Soutěž s kamarády v žebříčku'}</button>
+        ${mistakes.length ? `<button class="btn orange wide" data-act="practiceMistakes">${t('Procvičit chyby', 'Practise mistakes')}</button>` : ''}
+        <button class="btn primary wide" data-act="home" autofocus>${t('Pokračovat', 'Continue')}</button>
+        <button class="btn ghost wide" data-act="board">🏆 ${PLAYER ? t('Jak jsem na tom v žebříčku?', 'How am I doing on the leaderboard?') : t('Soutěž s kamarády v žebříčku', 'Compete with friends on the leaderboard')}</button>
       </div></div>`;
   },
 
   /* ----- Flashcards ----- */
   cards() {
     const C = S.C, a = C.queue[C.i];
-    return `<div class="lesson-top"><button class="x" data-act="home" title="Zpět">✕</button>
+    return `<div class="lesson-top"><button class="x" data-act="home" title="${t('Zpět', 'Back')}">✕</button>
       <div class="bar"><i style="width:${C.i / C.queue.length * 100}%;background:var(--blue)"></i></div><b class="small">${C.i + 1}/${C.queue.length}</b>${photoBtn()}${soundBtn()}</div>
-      <div class="q-title">Víš, jak se jmenuje?</div>
+      <div class="q-title">${t('Víš, jak se jmenuje?', 'Do you know its name?')}</div>
       <div class="flash" data-act="flip">${picHtml(C.img, a, 'pop')}</div>
       <div class="reveal">${C.flipped
         ? `<div class="intro-name" style="margin-top:8px">${nameHtml(a)} ${speakBtn(a)}</div><div class="intro-sub">${esc(a.la)}</div>`
-        : `<span class="muted">Řekni jméno nahlas a pak ťukni na „Ukázat“.</span>`}</div>
+        : `<span class="muted">${t('Řekni jméno nahlas a pak ťukni na „Ukázat“.', 'Say the name out loud, then tap “Show”.')}</span>`}</div>
       <div class="spacer"></div>
       <div class="feedback neutral">${C.flipped
-        ? `<div class="row"><button class="btn red" data-act="cardNo">😕 Nevěděl/a</button><button class="btn primary" data-act="cardYes">😎 Věděl/a</button></div>
-           <div class="know-row"><button class="know-btn" data-act="cardMastered" title="Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)">✓ Tohle znám – už neukazovat</button></div>`
-        : `<button class="btn blue wide" data-act="flip" autofocus>Ukázat</button>`}</div>`;
+        ? `<div class="row"><button class="btn red" data-act="cardNo">${t('😕 Nevěděl/a', '😕 Didn’t know')}</button><button class="btn primary" data-act="cardYes">${t('😎 Věděl/a', '😎 Knew it')}</button></div>
+           <div class="know-row"><button class="know-btn" data-act="cardMastered" title="${t('Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)', 'It leaves lessons and flashcards (stays in the test)')}">✓ ${t('Tohle znám – už neukazovat', 'I know this – don’t show again')}</button></div>`
+        : `<button class="btn blue wide" data-act="flip" autofocus>${t('Ukázat', 'Show')}</button>`}</div>`;
   },
   cardsEnd() {
     const C = S.C;
-    return `<div class="center"><div class="big-emoji">🃏</div><h1 style="color:var(--blue)">Kartičky hotové!</h1>
-      <p style="font-weight:800;font-size:18px">Věděl/a jsi ${C.yes} z ${C.queue.length}.</p>
+    return `<div class="center"><div class="big-emoji">🃏</div><h1 style="color:var(--blue)">${t('Kartičky hotové!', 'Flashcards done!')}</h1>
+      <p style="font-weight:800;font-size:18px">${t('Věděl/a jsi', 'You knew')} ${C.yes} ${t('z', 'of')} ${C.queue.length}.</p>
       <div style="display:grid;gap:10px;margin-top:20px">
-        <button class="btn blue wide" data-act="cards">Další kartičky</button>
-        <button class="btn primary wide" data-act="home" autofocus>Hotovo</button></div></div>`;
+        <button class="btn blue wide" data-act="cards">${t('Další kartičky', 'More flashcards')}</button>
+        <button class="btn primary wide" data-act="home" autofocus>${t('Hotovo', 'Done')}</button></div></div>`;
   },
 
   /* ----- Atlas ----- */
   atlas() {
     const hide = S.hide;
-    return `<div class="sticky-head"><div class="lesson-top" style="margin-bottom:6px"><button class="x" data-act="home" title="Zpět">✕</button>
+    return `<div class="sticky-head"><div class="lesson-top" style="margin-bottom:6px"><button class="x" data-act="home" title="${t('Zpět', 'Back')}">✕</button>
       <h2 style="flex:1">Atlas</h2>
-      <button class="photo-mode ${hide ? 'on' : ''}" data-act="hideNames" title="Schovat / ukázat jména">${hide ? '👀 Ukázat jména' : '🙈 Schovat jména'}</button>${photoBtn()}</div>
-      <input class="search" type="search" data-search placeholder="Hledat zvíře…" value="${esc(S.q || '')}" autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="photo-mode ${hide ? 'on' : ''}" data-act="hideNames" title="${t('Schovat / ukázat jména', 'Hide / show names')}">${hide ? '👀 ' + t('Ukázat jména', 'Show names') : '🙈 ' + t('Schovat jména', 'Hide names')}</button>${photoBtn()}</div>
+      <input class="search" type="search" data-search placeholder="${t('Hledat zvíře…', 'Search animals…')}" value="${esc(S.q || '')}" autocomplete="off" autocorrect="off" spellcheck="false">
       <div class="afilters">
-        <button class="afilter ${S.fg ? '' : 'on'}" data-act="afilter" data-g="">Vše</button>
+        <button class="afilter ${S.fg ? '' : 'on'}" data-act="afilter" data-g="">${t('Vše', 'All')}</button>
         ${GROUPS.map(g => `<button class="afilter ${S.fg === g.id ? 'on' : ''}" data-act="afilter" data-g="${g.id}" style="--gc:${g.color}">${g.icon} ${g.name}</button>`).join('')}
       </div></div>
       ${GROUPS.map(g => `<div class="agroup">
         <div class="section-title" style="color:${g.color}"><span>${g.icon} ${g.name}</span></div>
         <div class="atlas-grid">${ANIMALS.filter(a => a.g === g.id).map(a => `
-          <button class="btn acard" data-open="${esc(a.id)}" data-s="${esc(strip(a.cz + ' ' + a.la + ' ' + GROUP_BY_ID[a.g].name))}" data-g="${a.g}">${picHtml(imgsOf(a)[0], a)}
-            <div class="an">${hide ? '<span class="muted">? ? ?</span>' : esc(a.cz)}${dots(a)}</div></button>`).join('')}
+          <button class="btn acard" data-open="${esc(a.id)}" data-s="${esc(strip(a.answers.join(' ') + ' ' + a.la + ' ' + GROUP_BY_ID[a.g].name))}" data-g="${a.g}">${picHtml(imgsOf(a)[0], a)}
+            <div class="an">${hide ? '<span class="muted">? ? ?</span>' : esc(a.name)}${dots(a)}</div></button>`).join('')}
         </div></div>`).join('')}
-      <div class="search-empty" hidden>Nic takového tu není 🤷</div>
+      <div class="search-empty" hidden>${t('Nic takového tu není 🤷', 'Nothing like that here 🤷')}</div>
       ${S.open ? atlasModal() : ''}`;
   },
 };
@@ -1136,7 +1315,7 @@ function atlasModal() {
   const nav = atlasNeighbours(a);
   return `<div class="detail" data-stop>
     <div class="hero-photo">
-      <button class="x detail-x" data-act="closeModal" title="Zavřít">✕</button>
+      <button class="x detail-x" data-act="closeModal" title="${t('Zavřít', 'Close')}">✕</button>
       ${soundBtn('x detail-x detail-snd')}
       <div class="carousel" data-carousel>
         ${list.length ? list.map(u => picHtml(u, a, 'whole slide')).join('') : picHtml(null, a, 'whole slide')}
@@ -1145,20 +1324,20 @@ function atlasModal() {
     </div>
     <div class="detail-body">
       <div class="intro-name">${nameHtml(a)} ${speakBtn(a)}</div>
-      <div class="intro-sub">${esc(a.la)} · <button class="glink" data-act="openGroup" data-g="${a.g}" title="Zobrazit celou skupinu">${g.icon} ${g.name} ›</button></div>
-      <p class="detail-stats">Viděno ${p.s}× · správně ${p.c}× · špatně ${p.w}×</p>
-      ${p.done ? `<p class="center mastered-note">✓ Znáš na 100 %, v lekcích se už neukazuje</p>` : ''}
+      <div class="intro-sub">${esc(a.la)} · <button class="glink" data-act="openGroup" data-g="${a.g}" title="${t('Zobrazit celou skupinu', 'Show the whole group')}">${g.icon} ${g.name} ›</button></div>
+      <p class="detail-stats">${t('Viděno', 'Seen')} ${p.s}× · ${t('správně', 'right')} ${p.c}× · ${t('špatně', 'wrong')} ${p.w}×</p>
+      ${p.done ? `<p class="center mastered-note">${t('✓ Znáš na 100 %, v lekcích se už neukazuje', '✓ You know it 100 %, it no longer shows in lessons')}</p>` : ''}
     </div>
     <div class="detail-close">
       <div class="detail-actions">
-        <button class="know-btn" data-act="toggleMastered">${p.done ? '↩️ Vrátit do procvičování' : '✓ Tohle znám'}</button>
-        ${list.length ? `<button class="know-btn" data-act="badImg" title="Fotka nesedí? Skryj ji.">🚫 Fotka nesedí</button>` : ''}
-        <a class="know-btn" href="https://cs.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">📖 Wikipedie</a>
+        <button class="know-btn" data-act="toggleMastered">${p.done ? '↩️ ' + t('Vrátit do procvičování', 'Back to practice') : '✓ ' + t('Tohle znám', 'I know this')}</button>
+        ${list.length ? `<button class="know-btn" data-act="badImg" title="${t('Fotka nesedí? Skryj ji.', 'Wrong photo? Hide it.')}">🚫 ${t('Fotka nesedí', 'Wrong photo')}</button>` : ''}
+        <a class="know-btn" href="https://${LANG}.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">${t('📖 Wikipedie', '📖 Wikipedia')}</a>
       </div>
       <div class="detail-nav">
-        <button class="btn navbtn" data-act="prevAnimal" title="Předchozí zvíře" ${nav.prev ? '' : 'disabled'}>‹</button>
-        <button class="btn primary" data-act="closeModal">Zavřít</button>
-        <button class="btn navbtn" data-act="nextAnimal" title="Další zvíře" ${nav.next ? '' : 'disabled'}>›</button>
+        <button class="btn navbtn" data-act="prevAnimal" title="${t('Předchozí zvíře', 'Previous animal')}" ${nav.prev ? '' : 'disabled'}>‹</button>
+        <button class="btn primary" data-act="closeModal">${t('Zavřít', 'Close')}</button>
+        <button class="btn navbtn" data-act="nextAnimal" title="${t('Další zvíře', 'Next animal')}" ${nav.next ? '' : 'disabled'}>›</button>
       </div>
     </div>
   </div>`;
@@ -1168,21 +1347,21 @@ function questionBody(it, L) {
   const a = it.a, st = it.state;   // state: undefined | {ok, pick, typed, verdict}
   let html = '';
   if (it.type === 'pickName') {
-    html = `<div class="q-title">Jak se jmenuje toto zvíře?</div>${picHtml(it.img, a)}
+    html = `<div class="q-title">${t('Jak se jmenuje toto zvíře?', 'What is this animal called?')}</div>${picHtml(it.img, a)}
       <div class="options">${it.options.map((o, i) => {
         let cls = '';
         if (st) { if (o === a) cls = 'correct'; else if (st.pick === i) cls = 'wrong'; }
-        return `<button class="btn opt ${cls}" data-pick="${i}" ${st ? 'disabled' : ''}>${esc(o.cz)}</button>`;
+        return `<button class="btn opt ${cls}" data-pick="${i}" ${st ? 'disabled' : ''}>${esc(o.name)}</button>`;
       }).join('')}</div>`;
   } else if (it.type === 'pickImage') {
-    html = `<div class="q-title">Kde je <span style="color:var(--blue)">${esc(a.cz)}</span>? ${speakBtn(a)}</div>
+    html = `<div class="q-title">${t('Kde je', 'Where is the')} <span style="color:var(--blue)">${esc(a.name)}</span>? ${speakBtn(a)}</div>
       <div class="imgopts">${it.options.map((o, i) => {
         let cls = '';
         if (st) { if (o.a === a) cls = 'correct'; else if (st.pick === i) cls = 'wrong'; }
         return `<button class="btn imgopt ${cls}" data-pick="${i}" ${st ? 'disabled' : ''}>${picHtml(o.img, o.a, 'sm')}</button>`;
       }).join('')}</div>`;
   } else if (it.type === 'epithet') {
-    html = `<div class="q-title">Doplň celé jméno</div>${picHtml(it.img, a)}
+    html = `<div class="q-title">${t('Doplň celé jméno', 'Complete the full name')}</div>${picHtml(it.img, a)}
       <div class="blank">${esc(a.first)} <u>${st ? esc(a.second) : '&nbsp;'}</u></div>
       <div class="chips">${it.options.map((o, i) => {
         let cls = '';
@@ -1190,29 +1369,29 @@ function questionBody(it, L) {
         return `<button class="btn chip ${cls}" data-pick="${i}" ${st ? 'disabled' : ''}>${esc(o)}</button>`;
       }).join('')}</div>`;
   } else if (it.type === 'type') {
-    html = `<div class="q-title">Napiš celé jméno</div>${picHtml(it.img, a)}
+    html = `<div class="q-title">${t('Napiš celé jméno', 'Type the full name')}</div>${picHtml(it.img, a)}
       <form data-form="type" autocomplete="off">
-        <input class="typein ${st && !st.ok ? 'shake' : ''}" name="ans" placeholder="např. kapr obecný" autocapitalize="off" autocorrect="off" spellcheck="false" ${st ? `disabled value="${esc(st.typed)}"` : 'autofocus'}>
-        ${!st ? `${it.hint ? `<p class="muted" style="font-weight:700">Nápověda: začíná na <b>${esc(a.first)}</b></p>` : ''}
+        <input class="typein ${st && !st.ok ? 'shake' : ''}" name="ans" placeholder="${t('např. kapr obecný', 'e.g. common carp')}" autocapitalize="off" autocorrect="off" spellcheck="false" ${st ? `disabled value="${esc(st.typed)}"` : 'autofocus'}>
+        ${!st ? `${it.hint ? `<p class="muted" style="font-weight:700">${t('Nápověda: začíná na', 'Hint: starts with')} <b>${esc(EN ? a.name.split(' ')[0] : a.first)}</b></p>` : ''}
           <div class="row" style="margin-top:12px">
-            ${!it.hint && !L.exam ? `<button type="button" class="btn" data-act="hint">💡 Nápověda</button>` : ''}
-            <button type="button" class="btn" data-act="dunno">Nevím</button>
-            <button type="submit" class="btn primary">Zkontrolovat</button></div>` : ''}
+            ${!it.hint && !L.exam ? `<button type="button" class="btn" data-act="hint">${t('💡 Nápověda', '💡 Hint')}</button>` : ''}
+            <button type="button" class="btn" data-act="dunno">${t('Nevím', 'I don’t know')}</button>
+            <button type="submit" class="btn primary">${t('Zkontrolovat', 'Check')}</button></div>` : ''}
       </form>`;
   }
   let fb = '';
   if (st) {
     const nice = st.ok && st.verdict === 'ok';
     const title = nice ? sample(PRAISE)
-      : st.ok ? 'Skoro!'
-      : 'Správně je:';
+      : st.ok ? t('Skoro!', 'Almost!')
+      : t('Správně je:', 'The answer is:');
     const msg = nice ? `${nameHtml(a)}`
-      : st.ok ? `${st.verdict === 'accent' ? 'Pozor na háčky a čárky' : 'Malý překlep'}. Píše se: <b>${esc(a.cz)}</b>`
+      : st.ok ? `${st.verdict === 'accent' ? t('Pozor na háčky a čárky', 'Watch the accents') : t('Malý překlep', 'Small typo')}. ${t('Píše se', 'It’s spelled')}: <b>${esc(a.name)}</b>`
       : `<b>${nameHtml(a)}</b>`;
     fb = `<div class="spacer"></div><div class="feedback ${st.ok ? 'ok' : 'bad'}">
       <h3>${st.ok ? '✅' : '❌'} ${title}</h3><p>${msg} ${speakBtn(a)}</p>
-      ${st.ok && it.offerKnow ? `<div class="know-row"><button class="know-btn" data-act="mastered" title="Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)">✓ Tohle znám – už neukazovat</button></div>` : ''}
-      <button class="btn primary wide ${st.ok ? '' : 'bad'}" data-act="next" autofocus>Pokračovat</button></div>`;
+      ${st.ok && it.offerKnow ? `<div class="know-row"><button class="know-btn" data-act="mastered" title="${t('Zvíře zmizí z lekcí a kartiček (ve zkoušce zůstane)', 'It leaves lessons and flashcards (stays in the test)')}">✓ ${t('Tohle znám – už neukazovat', 'I know this – don’t show again')}</button></div>` : ''}
+      <button class="btn primary wide ${st.ok ? '' : 'bad'}" data-act="next" autofocus>${t('Pokračovat', 'Continue')}</button></div>`;
   }
   return html + fb;
 }
@@ -1222,7 +1401,7 @@ function questionBody(it, L) {
  * ------------------------------------------------------------------ */
 function startLesson(fromList) {
   const P = fromList ? fromList.filter(a => !prog(a).done) : trainPool();
-  if (!P.length) { alert(imgPool().length ? ALL_DONE_MSG : 'Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.'); return; }
+  if (!P.length) { alert(imgPool().length ? ALL_DONE_MSG : t('Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.', 'No photos available. Check your internet connection.')); return; }
   const N = Math.min(12, Math.max(P.length, 4));
   let items = [];
   if (fromList) {
@@ -1265,7 +1444,7 @@ function startLesson(fromList) {
 
 function startExam() {
   const P = shuffle(imgPool());
-  if (!P.length) { alert('Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.'); return; }
+  if (!P.length) { alert(t('Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.', 'No photos available. Check your internet connection.')); return; }
   const items = P.map(a => ({ a, type: 'type', img: pickImg(a) }));
   const L = { queue: items, i: 0, done: 0, total: items.length, questions: 0, firstQs: 0, firstTry: 0, xp: 0, mistakes: [], seenWrong: new Set(), exam: true, points: 0 };
   preload(items.slice(0, 10).map(i => i.img));
@@ -1274,7 +1453,7 @@ function startExam() {
 
 function startCards() {
   const P = trainPool();
-  if (!P.length) { alert(imgPool().length ? ALL_DONE_MSG : 'Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.'); return; }
+  if (!P.length) { alert(imgPool().length ? ALL_DONE_MSG : t('Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.', 'No photos available. Check your internet connection.')); return; }
   const queue = P.map(a => ({ a, s: prog(a).b + Math.random() * 2 })).sort((x, y) => x.s - y.s).slice(0, 15).map(x => x.a);
   const C = { queue: shuffle(queue), i: 0, flipped: false, yes: 0 };
   C.img = pickImg(C.queue[0]);
@@ -1284,7 +1463,7 @@ function startCards() {
 
 function maybeSpeakIntro() {
   const it = S.L && S.L.queue[S.L.i];
-  if (it && it.type === 'intro') setTimeout(() => say(it.a.cz), 250);
+  if (it && it.type === 'intro') setTimeout(() => say(it.a.name), 250);
 }
 
 function answer(it, ok, extra) {
@@ -1313,7 +1492,7 @@ function answer(it, ok, extra) {
   record(it.a, ok);
   beep(ok);
   try { navigator.vibrate && navigator.vibrate(ok ? 12 : [30, 50, 30]); } catch (e) {}
-  if (ok) say(it.a.cz);
+  if (ok) say(it.a.name);
   render();
 }
 
@@ -1336,13 +1515,13 @@ function next() {
 }
 
 const appUrl = () => location.href.split('#')[0].split('?')[0];
-async function shareApp(url = appUrl(), text = 'Uč se poznávat zvířata na test 🦊') {
-  const data = { title: 'Poznávačka zvířat', text, url };
+async function shareApp(url = appUrl(), text = t('Uč se poznávat zvířata na test 🦊', 'Learn to recognise animals for the test 🦊')) {
+  const data = { title: t('Poznávačka zvířat', 'Animal Quiz'), text, url };
   try {
     if (navigator.share) { await navigator.share(data); return; }
   } catch (e) { if (e && e.name === 'AbortError') return; }
-  try { await navigator.clipboard.writeText(url); alert('Odkaz zkopírován, pošli ho kamarádům:\n' + url); }
-  catch (e) { prompt('Zkopíruj odkaz a pošli ho kamarádům:', url); }
+  try { await navigator.clipboard.writeText(url); alert(t('Odkaz zkopírován, pošli ho kamarádům:', 'Link copied, send it to your friends:') + '\n' + url); }
+  catch (e) { prompt(t('Zkopíruj odkaz a pošli ho kamarádům:', 'Copy the link and send it to your friends:'), url); }
 }
 
 /* ------------------------------------------------------------------ *
@@ -1467,7 +1646,7 @@ async function googleLogin() {
     const j = await idt('createAuthUri', { providerId: 'google.com', continueUri: back, customParameter: { prompt: 'select_account' } });
     store.set(K.glogin, { sid: j.sessionId, back });
     location.assign(j.authUri);
-  } catch (e) { alert('Přihlášení se nepovedlo spustit. Zkontroluj internet.'); }
+  } catch (e) { alert(t('Přihlášení se nepovedlo spustit. Zkontroluj internet.', 'Couldn’t start sign-in. Check your internet.')); }
 }
 async function finishGoogleLogin() {
   // Google answers in the query (?code=) or, for Firebase's implicit flow, in the fragment (#id_token=).
@@ -1483,7 +1662,7 @@ async function finishGoogleLogin() {
     await switchAccount({ uid: j.localId, id: j.idToken, refresh: j.refreshToken, exp: Date.now() + (+j.expiresIn) * 1000 }, j.email || '');
     store.set(K.onboarded, true);
     return true;
-  } catch (e) { alert('Přihlášení přes Google se nepovedlo. Zkus to znovu.'); return false; }
+  } catch (e) { alert(t('Přihlášení přes Google se nepovedlo. Zkus to znovu.', 'Google sign-in didn’t work. Please try again.')); return false; }
 }
 const parseJson = (s, d) => { try { return JSON.parse(s); } catch (e) { return d; } };
 async function cloudGet(auth) {
@@ -1534,7 +1713,7 @@ async function switchAccount(g, email) {
   await syncPlayer().catch(() => {});                          // a taken name is handled on the board
 }
 async function logout() {
-  if (!confirm('Odhlásit se? Pokrok zůstane uložený v Google účtu, z tohoto zařízení se smaže.')) return;
+  if (!confirm(t('Odhlásit se? Pokrok zůstane uložený v Google účtu, z tohoto zařízení se smaže.', 'Sign out? Your progress stays in your Google account and is removed from this device.'))) return;
   clearTimeout(syncTimer);
   await cloudSync().catch(() => {});
   store.frozen = true;                                         // a sync still in flight must not write stats back
@@ -1556,28 +1735,28 @@ async function checkMoved() {
 }
 SCREENS.moved = () => `<div class="center" style="margin:auto 0;padding:10px 0">
   <div class="big-emoji">🚚</div>
-  <h1>Appka se přestěhovala</h1>
-  <p style="font-weight:700">Nová adresa je <b>mia-animals.web.app</b>. Nově se tam můžeš přihlásit přes Google a mít stejný pokrok na mobilu i na počítači.</p>
+  <h1>${t('Appka se přestěhovala', 'The app has moved')}</h1>
+  <p style="font-weight:700">${t('Nová adresa je', 'The new address is')} <b>mia-animals.web.app</b>. ${t('Nově se tam můžeš přihlásit přes Google a mít stejný pokrok na mobilu i na počítači.', 'There you can sign in with Google and keep the same progress on your phone and computer.')}</p>
   <div class="lb" style="text-align:left;margin:16px 0">
-    <div class="lb-row"><span class="lb-rank">1</span><span>Ťukni na <b>Otevřít novou appku</b>, tvůj pokrok se přenese</span></div>
-    <div class="lb-row"><span class="lb-rank">2</span><span>Přihlas se tam přes <b>Google</b></span></div>
-    <div class="lb-row"><span class="lb-rank">3</span><span>Přidej si ji na plochu, přihlas se v ní znovu a tuhle starou ikonu smaž</span></div>
+    <div class="lb-row"><span class="lb-rank">1</span><span>${t('Ťukni na', 'Tap')} <b>${t('Otevřít novou appku', 'Open the new app')}</b>${t(', tvůj pokrok se přenese', ', your progress comes along')}</span></div>
+    <div class="lb-row"><span class="lb-rank">2</span><span>${t('Přihlas se tam přes', 'Sign in there with')} <b>Google</b></span></div>
+    <div class="lb-row"><span class="lb-rank">3</span><span>${t('Přidej si ji na plochu, přihlas se v ní znovu a tuhle starou ikonu smaž', 'Add it to your home screen, sign in there again and delete this old icon')}</span></div>
   </div>
-  <a class="btn primary wide" style="display:block;text-decoration:none;box-sizing:border-box" href="${esc(S.url)}" target="_blank" rel="noopener">Otevřít novou appku</a>
+  <a class="btn primary wide" style="display:block;text-decoration:none;box-sizing:border-box" href="${esc(S.url)}" target="_blank" rel="noopener">${t('Otevřít novou appku', 'Open the new app')}</a>
 </div>`;
 
 /* Feedback: kids write ideas and bugs, stored in Firestore (feedback/{auto id}). */
 SCREENS.feedback = function () {
   const F = S.F;
-  const head = `<div class="lesson-top"><button class="x" data-act="home" title="Zpět">✕</button><h2 style="flex:1">💬 Nápad nebo chyba</h2></div>`;
-  if (F.sent) return head + `<div class="hero center"><div class="big-emoji">💚</div><h2>Díky!</h2>
-    <p class="muted" style="font-weight:700">Gandalf si to přečte. Klidně napiš i další nápad.</p>
-    <button class="btn primary wide" data-act="home">Domů</button>
-    <button class="btn ghost wide" data-act="feedback" style="margin-top:8px">Napsat další</button></div>`;
-  return head + `<p class="muted" style="font-weight:700">Co bys změnil/a, co ti chybí, nebo co nefunguje? Špatná fotka, špatné jméno, nápad na novou hru… Nepiš sem své jméno ani kontakt.</p>
+  const head = `<div class="lesson-top"><button class="x" data-act="home" title="${t('Zpět', 'Back')}">✕</button><h2 style="flex:1">${t('💬 Nápad nebo chyba', '💬 Idea or bug')}</h2></div>`;
+  if (F.sent) return head + `<div class="hero center"><div class="big-emoji">💚</div><h2>${t('Díky!', 'Thanks!')}</h2>
+    <p class="muted" style="font-weight:700">${t('Gandalf si to přečte. Klidně napiš i další nápad.', 'Gandalf will read it. Feel free to send another idea.')}</p>
+    <button class="btn primary wide" data-act="home">${t('Domů', 'Home')}</button>
+    <button class="btn ghost wide" data-act="feedback" style="margin-top:8px">${t('Napsat další', 'Write another')}</button></div>`;
+  return head + `<p class="muted" style="font-weight:700">${t('Co bys změnil/a, co ti chybí, nebo co nefunguje? Špatná fotka, špatné jméno, nápad na novou hru… Nepiš sem své jméno ani kontakt.', 'What would you change, what’s missing, or what doesn’t work? A wrong photo, a wrong name, an idea for a new game… Don’t write your real name or contact details here.')}</p>
     <form data-form="feedback" autocomplete="off">
-      <textarea class="typein" name="text" rows="6" maxlength="1000" placeholder="Napiš sem…" style="resize:vertical;font-size:17px" ${F.sending ? 'disabled' : ''} autofocus>${esc(F.text || '')}</textarea>
-      <button class="btn primary wide" style="margin-top:12px" type="submit" ${F.sending ? 'disabled' : ''}>${F.sending ? 'Posílám…' : 'Odeslat'}</button>
+      <textarea class="typein" name="text" rows="6" maxlength="1000" placeholder="${t('Napiš sem…', 'Write here…')}" style="resize:vertical;font-size:17px" ${F.sending ? 'disabled' : ''} autofocus>${esc(F.text || '')}</textarea>
+      <button class="btn primary wide" style="margin-top:12px" type="submit" ${F.sending ? 'disabled' : ''}>${F.sending ? t('Posílám…', 'Sending…') : t('Odeslat', 'Send')}</button>
     </form>
     ${F.error ? `<p style="color:var(--bad-ink);font-weight:700">${esc(F.error)}</p>` : ''}`;
 };
@@ -1589,7 +1768,7 @@ async function sendFeedback(text) {
     const ctx = `${isIOS ? 'ios' : isAndroid ? 'android' : 'desktop'}${isStandalone() ? ' app' : ''} ${location.hostname}`;
     await fsCall('POST', 'feedback', fsDoc({ text, ...(PLAYER ? { name: PLAYER.name } : {}), ctx, uid: a.uid, at: new Date() }));
     F.sent = true;
-  } catch (e) { F.error = 'Nepovedlo se odeslat. Zkontroluj internet a zkus to znovu.'; }
+  } catch (e) { F.error = t('Nepovedlo se odeslat. Zkontroluj internet a zkus to znovu.', 'Couldn’t send. Check your internet and try again.'); }
   F.sending = false; render();
 }
 
@@ -1628,9 +1807,9 @@ const NICK_ALLOW = new RegExp("picasso|epic|peacock|cockatoo|cockpit|cocktail|hi
 const NICK_STRIP = new RegExp("[^a-z0-9@$!|€+]", 'g');
 const badName = n => NICK_BAD.test(n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(NICK_STRIP, '').replace(NICK_ALLOW, ''));
 // END NICKFILTER
-const NICK_REFUSED = 'Tahle přezdívka není povolená. Zkus jinou.';
-const NICK_TAKEN = 'Tuhle přezdívku už někdo má. Zkus jinou.';
-const NICK_SHORT = 'Přezdívka musí mít aspoň 2 písmena nebo číslice.';
+const NICK_REFUSED = t('Tahle přezdívka není povolená. Zkus jinou.', 'That nickname isn’t allowed. Try another one.');
+const NICK_TAKEN = t('Tuhle přezdívku už někdo má. Zkus jinou.', 'Someone already has that nickname. Try another one.');
+const NICK_SHORT = t('Přezdívka musí mít aspoň 2 písmena nebo číslice.', 'A nickname needs at least 2 letters or digits.');
 const nickError = e => e.message === 'taken' ? NICK_TAKEN : /403/.test(e.message) ? NICK_REFUSED : null;
 // Claim the new name first, then move the board entries over, then free the old name.
 async function setNick(name) {
@@ -1646,18 +1825,18 @@ const cleanName = s => s.replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').
 
 SCREENS.board = function () {
   const B = S.B;
-  const head = `<div class="lesson-top"><button class="x" data-act="home" title="Zpět">✕</button><h2 style="flex:1">🏆 Žebříček</h2></div>`;
+  const head = `<div class="lesson-top"><button class="x" data-act="home" title="${t('Zpět', 'Back')}">✕</button><h2 style="flex:1">${t('🏆 Žebříček', '🏆 Leaderboard')}</h2></div>`;
   if (!PLAYER || B.rename) {
     return head + `<div class="hero center">
       <div class="big-emoji" style="margin-top:4px">🏆</div>
-      <h2>${B.rename ? 'Nová přezdívka' : 'Soutěž s kamarády'}</h2>
-      <p class="muted" style="font-weight:700">${B.rename ? '' : `${B.after ? 'Na výzvy potřebuješ přezdívku. ' : ''}Vyber si přezdívku. Ostatní uvidí jen ji, tvoje body za týden a kolik zvířat umíš.`}</p>
+      <h2>${B.rename ? t('Nová přezdívka', 'New nickname') : t('Soutěž s kamarády', 'Compete with friends')}</h2>
+      <p class="muted" style="font-weight:700">${B.rename ? '' : `${B.after ? t('Na výzvy potřebuješ přezdívku. ', 'You need a nickname for challenges. ') : ''}${t('Vyber si přezdívku. Ostatní uvidí jen ji, tvoje body za týden a kolik zvířat umíš.', 'Pick a nickname. Others only see it, your points this week and how many animals you know.')}`}</p>
       <form data-form="nick" autocomplete="off">
-        <input class="typein" name="nick" maxlength="16" placeholder="Přezdívka (2–16 znaků)" value="${esc(PLAYER ? PLAYER.name : '')}" autofocus>
-        <button class="btn primary wide" style="margin-top:12px" type="submit">${B.rename ? 'Uložit' : 'Připojit se'}</button>
+        <input class="typein" name="nick" maxlength="16" placeholder="${t('Přezdívka (2–16 znaků)', 'Nickname (2–16 characters)')}" value="${esc(PLAYER ? PLAYER.name : '')}" autofocus>
+        <button class="btn primary wide" style="margin-top:12px" type="submit">${B.rename ? t('Uložit', 'Save') : t('Připojit se', 'Join')}</button>
       </form>
       ${B.error ? `<p style="color:var(--bad-ink);font-weight:700">${esc(B.error)}</p>` : ''}
-      ${B.rename ? `<button class="btn ghost" data-act="cancelRename">Zrušit</button>` : ''}
+      ${B.rename ? `<button class="btn ghost" data-act="cancelRename">${t('Zrušit', 'Cancel')}</button>` : ''}
     </div>`;
   }
   const field = B.tab === 'week' ? 'xp' : 'known';
@@ -1666,19 +1845,19 @@ SCREENS.board = function () {
   const medal = i => ['🥇', '🥈', '🥉'][i] || (i + 1);
   return head + `
     <div class="tabs">
-      <button class="btn tab ${B.tab === 'week' ? 'on' : ''}" data-act="tabWeek">Tento týden</button>
-      <button class="btn tab ${B.tab === 'all' ? 'on' : ''}" data-act="tabAll">Celkem</button>
+      <button class="btn tab ${B.tab === 'week' ? 'on' : ''}" data-act="tabWeek">${t('Tento týden', 'This week')}</button>
+      <button class="btn tab ${B.tab === 'all' ? 'on' : ''}" data-act="tabAll">${t('Celkem', 'All time')}</button>
     </div>
-    <p class="muted small center" style="margin:-4px 0 12px;font-weight:700">${B.tab === 'week' ? 'Body získané od pondělí' : 'Kolik zvířat umíš (ze 147)'}</p>
-    ${B.loading ? `<div class="center muted" style="padding:30px">Načítám…</div>`
-      : B.error ? `<div class="warn">Žebříček se nepodařilo načíst. Zkontroluj internet. <button class="btn ghost" data-act="board">Zkusit znovu</button></div>`
+    <p class="muted small center" style="margin:-4px 0 12px;font-weight:700">${B.tab === 'week' ? t('Body získané od pondělí', 'Points since Monday') : t('Kolik zvířat umíš (ze 147)', 'Animals you know (of 147)')}</p>
+    ${B.loading ? `<div class="center muted" style="padding:30px">${t('Načítám…', 'Loading…')}</div>`
+      : B.error ? `<div class="warn">${t('Žebříček se nepodařilo načíst. Zkontroluj internet.', 'Couldn’t load the leaderboard. Check your internet.')} <button class="btn ghost" data-act="board">${t('Zkusit znovu', 'Try again')}</button></div>`
       : rows.length ? `<div class="lb ranked">${rows.map((r, i) => `<div class="lb-row ${r.uid === B.me ? 'me' : ''}">
-          <span class="lb-rank">${medal(i)}</span><span class="lb-name">${esc(r.name)}${r.uid === B.me ? ' (ty)' : ''}</span>
+          <span class="lb-rank">${medal(i)}</span><span class="lb-name">${esc(r.name)}${r.uid === B.me ? t(' (ty)', ' (you)') : ''}</span>
           <span class="lb-val">${unit} ${r[field] || 0}</span></div>`).join('')}</div>`
-      : `<div class="center muted" style="padding:30px;font-weight:700">Zatím tu nikdo není. Buď první!</div>`}
+      : `<div class="center muted" style="padding:30px;font-weight:700">${t('Zatím tu nikdo není. Buď první!', 'Nobody here yet. Be the first!')}</div>`}
     <div class="foot">
-      <button class="btn ghost small" data-act="rename">✏️ Změnit přezdívku</button>
-      <button class="btn ghost small" data-act="leaveBoard">Odejít ze žebříčku</button>
+      <button class="btn ghost small" data-act="rename">${t('✏️ Změnit přezdívku', '✏️ Change nickname')}</button>
+      <button class="btn ghost small" data-act="leaveBoard">${t('Odejít ze žebříčku', 'Leave the leaderboard')}</button>
     </div>`;
 };
 
@@ -1693,16 +1872,16 @@ async function joinBoard(name) {
     loadBoard();
   } catch (e) {
     PLAYER = store.get(K.player, null);
-    S.B.error = nickError(e) || 'Nepovedlo se připojit. Zkontroluj internet.'; render();
+    S.B.error = nickError(e) || t('Nepovedlo se připojit. Zkontroluj internet.', 'Couldn’t connect. Check your internet.'); render();
   }
 }
 async function leaveBoard() {
-  if (!confirm('Opravdu odejít ze žebříčku? Tvoje jméno a body z něj zmizí.')) return;
+  if (!confirm(t('Opravdu odejít ze žebříčku? Tvoje jméno a body z něj zmizí.', 'Really leave the leaderboard? Your name and points will disappear from it.'))) return;
   try {
     const a = await fbToken();
     await Promise.all([fsCall('DELETE', `players/${a.uid}`), fsCall('DELETE', `weeks/${isoWeek()}/players/${a.uid}`), releaseName(PLAYER.name)]);
     PLAYER = null; store.del(K.player); go('home');
-  } catch (e) { alert('Nepovedlo se, zkus to znovu.'); }
+  } catch (e) { alert(t('Nepovedlo se, zkus to znovu.', 'That didn’t work, please try again.')); }
 }
 
 /* ------------------------------------------------------------------ *
@@ -1712,7 +1891,7 @@ async function leaveBoard() {
  * ------------------------------------------------------------------ */
 const DUEL_N = 10;
 const findAnimal = id => ANIMALS.find(a => a.id === id);
-const fmtTime = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
+const fmtTime = ms => (ms / 1000).toFixed(1).replace('.', t(',', '.')) + ' s';
 const randId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghijkmnopqrstuvwxyz23456789'[b % 33]).join('');
 function myDuels() { return store.get(K.duels, []); }
 function rememberDuel(d) { store.set(K.duels, [d, ...myDuels().filter(x => x.id !== d.id)].slice(0, 15)); }
@@ -1730,7 +1909,8 @@ function duelItems(qs) {
   return qs.map(q => {
     const a = findAnimal(q.a); if (!a) return null;
     if (q.t === 'pickName') return { a, type: 'pickName', img: q.img, options: q.o.map(findAnimal).filter(Boolean) };
-    if (q.t === 'epithet') return { a, type: 'epithet', img: q.img, options: q.o };
+    if (q.t === 'epithet') return EN ? { a, type: 'pickName', img: q.img, options: shuffle([a, ...distractors(a, 3, { hard: true })]) }
+      : { a, type: 'epithet', img: q.img, options: q.o };
     return { a, type: 'pickImage', img: q.img, options: q.o.map(x => ({ a: findAnimal(x.a), img: x.img })).filter(x => x.a) };
   }).filter(Boolean);
 }
@@ -1743,7 +1923,7 @@ function startDuelGame(duel) {
 }
 function newDuel() {
   if (!PLAYER) { go('board', { B: { tab: 'week', after: 'duels' } }); return; }
-  if (imgPool().length < DUEL_N) { alert(`Vyber skupiny s aspoň ${DUEL_N} zvířaty.`); return; }
+  if (imgPool().length < DUEL_N) { alert(EN ? `Pick groups with at least ${DUEL_N} animals.` : `Vyber skupiny s aspoň ${DUEL_N} zvířaty.`); return; }
   startDuelGame({ id: randId(), create: true, qs: duelQuestions(), byName: PLAYER.name });
 }
 async function finishDuel(L) {
@@ -1761,7 +1941,7 @@ async function finishDuel(L) {
     rememberDuel({ id: d.id, by: d.byName, at: Date.now() });
     await loadDuel(d.id);
   } catch (e) {
-    S.D.loading = false; S.D.error = e.message === 'taken' ? 'Tvoji přezdívku mezitím obsadil někdo jiný. Změň si ji v Žebříčku.' : 'Výsledek se nepodařilo uložit. Zkontroluj internet.'; render();
+    S.D.loading = false; S.D.error = e.message === 'taken' ? t('Tvoji přezdívku mezitím obsadil někdo jiný. Změň si ji v Žebříčku.', 'Someone else took your nickname in the meantime. Change it in the Leaderboard.') : t('Výsledek se nepodařilo uložit. Zkontroluj internet.', 'Couldn’t save the result. Check your internet.'); render();
   }
 }
 async function loadDuel(id) {
@@ -1777,7 +1957,7 @@ async function loadDuel(id) {
     D.me = (store.get(K.auth, null) || {}).uid;
     D.played = D.results.some(r => r.uid === D.me);
     D.error = null;
-  } catch (e) { D.error = /404/.test(e.message) ? 'Tahle výzva neexistuje.' : 'Výzvu se nepodařilo načíst. Zkontroluj internet.'; }
+  } catch (e) { D.error = /404/.test(e.message) ? t('Tahle výzva neexistuje.', 'This challenge doesn’t exist.') : t('Výzvu se nepodařilo načíst. Zkontroluj internet.', 'Couldn’t load the challenge. Check your internet.'); }
   D.loading = false;
   if (S.screen === 'duel') render();
 }
@@ -1788,7 +1968,8 @@ function playDuel() {
 }
 function shareDuel() {
   const D = S.D, me = (D.results || []).find(r => r.uid === D.me);
-  const txt = me ? `Vyzývám tě! Poznal/a jsem ${me.score} z ${D.qs.length} zvířat za ${fmtTime(me.ms)}. Porazíš mě? ⚔️🦊` : 'Vyzývám tě na souboj v poznávání zvířat! ⚔️🦊';
+  const txt = me ? (EN ? `I challenge you! I got ${me.score} of ${D.qs.length} animals in ${fmtTime(me.ms)}. Can you beat me? ⚔️🦊` : `Vyzývám tě! Poznal/a jsem ${me.score} z ${D.qs.length} zvířat za ${fmtTime(me.ms)}. Porazíš mě? ⚔️🦊`)
+    : t('Vyzývám tě na souboj v poznávání zvířat! ⚔️🦊', 'I challenge you to an animal quiz duel! ⚔️🦊');
   shareApp(`${appUrl()}?duel=${D.id}`, txt);
 }
 async function openDuels() {
@@ -1808,26 +1989,26 @@ async function openDuels() {
 
 SCREENS.duels = function () {
   const { list, res } = S.L2;
-  return `<div class="lesson-top"><button class="x" data-act="home" title="Zpět">✕</button><h2 style="flex:1">⚔️ Výzvy</h2></div>
+  return `<div class="lesson-top"><button class="x" data-act="home" title="${t('Zpět', 'Back')}">✕</button><h2 style="flex:1">${t('⚔️ Výzvy', '⚔️ Challenges')}</h2></div>
     <div class="hero">
-      <b style="font-size:18px">Vyzvi kamarády</b>
-      <p class="muted" style="font-weight:700;margin:6px 0 12px">Zahraješ si ${DUEL_N} zvířat z vybraných skupin a pošleš odkaz. Kamarádi dostanou úplně stejné otázky. Vyhrává víc správně, při shodě rychlejší.</p>
-      <button class="btn red wide" data-act="newDuel">⚔️ Nová výzva</button>
+      <b style="font-size:18px">${t('Vyzvi kamarády', 'Challenge your friends')}</b>
+      <p class="muted" style="font-weight:700;margin:6px 0 12px">${EN ? `Play ${DUEL_N} animals from the chosen groups and send the link. Your friends get exactly the same questions. Most correct wins; if tied, the faster one.` : `Zahraješ si ${DUEL_N} zvířat z vybraných skupin a pošleš odkaz. Kamarádi dostanou úplně stejné otázky. Vyhrává víc správně, při shodě rychlejší.`}</p>
+      <button class="btn red wide" data-act="newDuel">${t('⚔️ Nová výzva', '⚔️ New challenge')}</button>
     </div>
-    ${list.length ? `<div class="section-title"><span>Moje výzvy</span></div><div class="lb">${list.map(d => {
+    ${list.length ? `<div class="section-title"><span>${t('Moje výzvy', 'My challenges')}</span></div><div class="lb">${list.map(d => {
       const r = res[d.id];
       return `<button class="btn duel-card" data-act="openDuel" data-id="${esc(d.id)}">
         <span style="font-size:26px">${r && r.rank === 1 ? '🥇' : '⚔️'}</span>
-        <span class="dn">Výzva od ${esc(d.by)}<br><span class="vs">${r ? `${r.n} ${r.n === 1 ? 'hráč' : r.n < 5 ? 'hráči' : 'hráčů'} · ${r.rank ? `jsi ${r.rank}.` : ''} · vede ${esc(r.leader.name)}` : new Date(d.at).toLocaleDateString('cs-CZ')}</span></span>
+        <span class="dn">${t('Výzva od', 'Challenge from')} ${esc(d.by)}<br><span class="vs">${r ? `${r.n} ${EN ? (r.n === 1 ? 'player' : 'players') : r.n === 1 ? 'hráč' : r.n < 5 ? 'hráči' : 'hráčů'} · ${r.rank ? (EN ? `you’re #${r.rank}` : `jsi ${r.rank}.`) : ''} · ${t('vede', 'leader:')} ${esc(r.leader.name)}` : new Date(d.at).toLocaleDateString(t('cs-CZ', 'en-GB'))}</span></span>
         <span class="vs">›</span></button>`;
     }).join('')}</div>` : ''}`;
 };
 
 SCREENS.duel = function () {
   const D = S.D;
-  const head = `<div class="lesson-top"><button class="x" data-act="duels" title="Zpět">✕</button><h2 style="flex:1">⚔️ Výzva</h2></div>`;
-  if (D.loading) return head + `<div class="loading"><div class="spin">⚔️</div><h2>Načítám…</h2></div>`;
-  if (D.error && !D.results) return head + `<div class="warn">${esc(D.error)}</div><button class="btn primary wide" data-act="home">Domů</button>`;
+  const head = `<div class="lesson-top"><button class="x" data-act="duels" title="${t('Zpět', 'Back')}">✕</button><h2 style="flex:1">${t('⚔️ Výzva', '⚔️ Challenge')}</h2></div>`;
+  if (D.loading) return head + `<div class="loading"><div class="spin">⚔️</div><h2>${t('Načítám…', 'Loading…')}</h2></div>`;
+  if (D.error && !D.results) return head + `<div class="warn">${esc(D.error)}</div><button class="btn primary wide" data-act="home">${t('Domů', 'Home')}</button>`;
   const rows = D.results || [];
   const meIdx = rows.findIndex(r => r.uid === D.me);
   const jp = D.justPlayed;
@@ -1836,26 +2017,26 @@ SCREENS.duel = function () {
   if (jp) {
     const won = meIdx === 0 && rows.length > 1;
     top = `<div class="center"><div class="big-emoji">${won ? '🏆' : meIdx === 0 ? '⚔️' : '💪'}</div>
-      <h1 style="color:var(--orange)">${jp.score} z ${jp.n}</h1>
-      <p style="font-weight:800">za ${fmtTime(jp.ms)} · ${rows.length > 1 ? `jsi ${meIdx + 1}. z ${rows.length}` : 'teď to pošli kamarádům!'}</p></div>`;
+      <h1 style="color:var(--orange)">${jp.score} ${t('z', 'of')} ${jp.n}</h1>
+      <p style="font-weight:800">${t('za', 'in')} ${fmtTime(jp.ms)} · ${rows.length > 1 ? (EN ? `you’re #${meIdx + 1} of ${rows.length}` : `jsi ${meIdx + 1}. z ${rows.length}`) : t('teď to pošli kamarádům!', 'now send it to your friends!')}</p></div>`;
   } else if (!D.played) {
     top = `<div class="center"><div class="big-emoji">⚔️</div>
-      <h1>${esc(D.byName)} tě vyzývá!</h1>
-      <p class="muted" style="font-weight:700">${D.qs.length} zvířat. Vyhrává víc správně, při shodě rychlejší. Máš jen jeden pokus.</p>
-      <button class="btn red wide" data-act="playDuel" autofocus>Hrát</button></div>`;
+      <h1>${EN ? `${esc(D.byName)} challenges you!` : `${esc(D.byName)} tě vyzývá!`}</h1>
+      <p class="muted" style="font-weight:700">${D.qs.length} ${t('zvířat. Vyhrává víc správně, při shodě rychlejší. Máš jen jeden pokus.', 'animals. Most correct wins; if tied, the faster one. You get one try.')}</p>
+      <button class="btn red wide" data-act="playDuel" autofocus>${t('Hrát', 'Play')}</button></div>`;
   } else {
-    top = `<div class="center"><h2>Výzva od ${esc(D.byName)}</h2></div>`;
+    top = `<div class="center"><h2>${t('Výzva od', 'Challenge from')} ${esc(D.byName)}</h2></div>`;
   }
   return head + top + `
     ${D.error ? `<div class="warn">${esc(D.error)}</div>` : ''}
-    ${rows.length ? `<div class="section-title"><span>Výsledky</span></div>
+    ${rows.length ? `<div class="section-title"><span>${t('Výsledky', 'Results')}</span></div>
       <div class="lb ranked">${rows.map((r, i) => `<div class="lb-row ${r.uid === D.me ? 'me' : ''}">
         <span class="lb-rank">${medal(i)}</span><span class="lb-name">${esc(r.name)}${r.uid === D.me ? ' (ty)' : ''}</span>
         <span class="lb-val">${r.score}/${D.qs.length} · ${fmtTime(r.ms)}</span></div>`).join('')}</div>` : ''}
     <div style="display:grid;gap:10px;margin-top:18px">
-      ${D.played ? `<button class="btn red wide" data-act="shareDuel">📤 Poslat výzvu kamarádům</button>` : ''}
-      <button class="btn ghost wide" data-act="newDuel">⚔️ Nová výzva</button>
-      <button class="btn primary wide" data-act="home">Domů</button>
+      ${D.played ? `<button class="btn red wide" data-act="shareDuel">${t('📤 Poslat výzvu kamarádům', '📤 Send the challenge to friends')}</button>` : ''}
+      <button class="btn ghost wide" data-act="newDuel">${t('⚔️ Nová výzva', '⚔️ New challenge')}</button>
+      <button class="btn primary wide" data-act="home">${t('Domů', 'Home')}</button>
     </div>`;
 };
 
@@ -1893,7 +2074,7 @@ async function onboardNick(name) {
     onboardNext();
   } catch (e) {
     PLAYER = null;
-    S.O.saving = false; S.O.error = nickError(e) || 'Nepovedlo se připojit. Zkontroluj internet, nebo to přeskoč a nastav později v Žebříčku.'; render();
+    S.O.saving = false; S.O.error = nickError(e) || t('Nepovedlo se připojit. Zkontroluj internet, nebo to přeskoč a nastav později v Žebříčku.', 'Couldn’t connect. Check your internet, or skip this and set it later in the Leaderboard.'); render();
   }
 }
 
@@ -1904,50 +2085,50 @@ SCREENS.onboard = function () {
   let body = '';
   if (step === 'welcome') {
     body = `<div class="big-emoji">🦊</div>
-      <h1>Ahoj!</h1>
-      <p style="font-weight:700;font-size:17px">Tady se naučíš poznávat <b>všech ${ANIMALS.length} obratlovců</b> z poznávačky podle fotek i s celými jmény.</p>
+      <h1>${t('Ahoj!', 'Hi!')}</h1>
+      <p style="font-weight:700;font-size:17px">${EN ? `Learn to recognise <b>all ${ANIMALS.length} vertebrates</b> from the school list by their photos, with their full names.` : `Tady se naučíš poznávat <b>všech ${ANIMALS.length} obratlovců</b> z poznávačky podle fotek i s celými jmény.`}</p>
       <div class="lb" style="text-align:left;margin:18px 0">
-        <div class="lb-row"><span style="font-size:24px">🎯</span><span>Krátké lekce jako v Duolingu</span></div>
-        <div class="lb-row"><span style="font-size:24px">📝</span><span>Zkouška nanečisto se známkou</span></div>
-        <div class="lb-row"><span style="font-size:24px">🏆</span><span>Žebříček a souboje s kamarády</span></div>
+        <div class="lb-row"><span style="font-size:24px">🎯</span><span>${t('Krátké lekce jako v Duolingu', 'Short lessons like Duolingo')}</span></div>
+        <div class="lb-row"><span style="font-size:24px">📝</span><span>${t('Zkouška nanečisto se známkou', 'A practice test with a grade')}</span></div>
+        <div class="lb-row"><span style="font-size:24px">🏆</span><span>${t('Žebříček a souboje s kamarády', 'Leaderboard and duels with friends')}</span></div>
       </div>
       ${GOOGLE_OK ? `<div class="start-choices">
-        <button class="btn primary wide" data-act="onbNext">▶ Začít bez přihlášení<span class="small">Pokrok a přezdívka se uloží jen v tomhle zařízení</span></button>
-        ${googleBtn('Pokrok na mobilu i počítači, přezdívka se neztratí')}
-      </div>` : `<button class="btn primary wide" data-act="onbNext" autofocus>Začít</button>`}`;
+        <button class="btn primary wide" data-act="onbNext">▶ ${t('Začít bez přihlášení', 'Start without signing in')}<span class="small">${t('Pokrok a přezdívka se uloží jen v tomhle zařízení', 'Progress and nickname stay on this device only')}</span></button>
+        ${googleBtn(t('Pokrok na mobilu i počítači, přezdívka se neztratí', 'Progress on phone and computer, your nickname is kept'))}
+      </div>` : `<button class="btn primary wide" data-act="onbNext" autofocus>${t('Začít', 'Start')}</button>`}`;
   } else if (step === 'install') {
     const ios = (O.os || (isIOS ? 'ios' : 'android')) === 'ios';
     body = `<div class="big-emoji">📲</div>
-      <h1>Přidej si appku na plochu</h1>
-      <p style="font-weight:700">Jen tak se ti <b>pokrok spolehlivě uloží</b>. V prohlížeči ho ${ios ? 'iPhone po týdnu může smazat' : 'můžeš snadno ztratit'}.</p>
+      <h1>${t('Přidej si appku na plochu', 'Add the app to your home screen')}</h1>
+      <p style="font-weight:700">${EN ? `That’s the only way <b>your progress is saved reliably</b>. In the browser ${ios ? 'an iPhone may delete it after a week' : 'you can easily lose it'}.` : `Jen tak se ti <b>pokrok spolehlivě uloží</b>. V prohlížeči ho ${ios ? 'iPhone po týdnu může smazat' : 'můžeš snadno ztratit'}.`}</p>
       <div class="tabs" style="margin-top:14px">
         <button class="btn tab ${ios ? 'on' : ''}" data-act="onbOs" data-os="ios">🍎 iPhone</button>
         <button class="btn tab ${ios ? '' : 'on'}" data-act="onbOs" data-os="android">🤖 Android</button>
       </div>
-      ${inAppBrowser ? `<div class="warn">Máš odkaz otevřený v aplikaci (Instagram, Messenger…). Nejdřív ho otevři v ${ios ? 'Safari' : 'Chromu'}: ťukni na ⋯ a „Otevřít v prohlížeči“.</div>` : ''}
-      ${!ios && installPrompt && isAndroid ? `<button class="btn primary wide" data-act="onbInstall" style="margin:10px 0">📲 Přidat na plochu</button>` : `
+      ${inAppBrowser ? `<div class="warn">${EN ? `You opened the link inside an app (Instagram, Messenger…). Open it in ${ios ? 'Safari' : 'Chrome'} first: tap ⋯ and “Open in browser”.` : `Máš odkaz otevřený v aplikaci (Instagram, Messenger…). Nejdřív ho otevři v ${ios ? 'Safari' : 'Chromu'}: ťukni na ⋯ a „Otevřít v prohlížeči“.`}</div>` : ''}
+      ${!ios && installPrompt && isAndroid ? `<button class="btn primary wide" data-act="onbInstall" style="margin:10px 0">${t('📲 Přidat na plochu', '📲 Add to home screen')}</button>` : `
       <div class="lb" style="text-align:left;margin:16px 0">
         ${ios ? `
-        <div class="lb-row"><span class="lb-rank">1</span><span>Dole v Safari ťukni na <b>Sdílet</b> <span style="font-size:20px">⬆️</span><br><span class="vs">(v novějším iOS nejdřív na ⋯)</span></span></div>
-        <div class="lb-row"><span class="lb-rank">2</span><span>Vyber <b>Přidat na plochu</b> <span style="font-size:20px">➕</span></span></div>
-        <div class="lb-row"><span class="lb-rank">3</span><span>Ťukni na <b>Přidat</b></span></div>
-        <div class="lb-row"><span class="lb-rank">4</span><span>Otevři appku <b>🦊 Zvířata</b> z plochy a pokračuj tam</span></div>` : `
-        <div class="lb-row"><span class="lb-rank">1</span><span>V Chromu ťukni vpravo nahoře na <b>⋮</b><br><span class="vs">(Samsung Internet: dole na <b>≡</b>)</span></span></div>
-        <div class="lb-row"><span class="lb-rank">2</span><span>Vyber <b>Přidat na plochu</b> nebo <b>Instalovat aplikaci</b><br><span class="vs">(Samsung: <b>Přidat stránku do → Plocha</b>)</span></span></div>
-        <div class="lb-row"><span class="lb-rank">3</span><span>Potvrď <b>Přidat</b> / <b>Instalovat</b></span></div>
-        <div class="lb-row"><span class="lb-rank">4</span><span>Otevři appku <b>🦊 Zvířata</b> z plochy</span></div>`}
+        <div class="lb-row"><span class="lb-rank">1</span><span>${EN ? `In Safari, tap <b>Share</b> <span style="font-size:20px">⬆️</span> at the bottom<br><span class="vs">(on newer iOS tap ⋯ first)</span>` : `Dole v Safari ťukni na <b>Sdílet</b> <span style="font-size:20px">⬆️</span><br><span class="vs">(v novějším iOS nejdřív na ⋯)</span>`}</span></div>
+        <div class="lb-row"><span class="lb-rank">2</span><span>${EN ? `Choose <b>Add to Home Screen</b> <span style="font-size:20px">➕</span>` : `Vyber <b>Přidat na plochu</b> <span style="font-size:20px">➕</span>`}</span></div>
+        <div class="lb-row"><span class="lb-rank">3</span><span>${EN ? `Tap <b>Add</b>` : `Ťukni na <b>Přidat</b>`}</span></div>
+        <div class="lb-row"><span class="lb-rank">4</span><span>${EN ? `Open the <b>🦊 Zvířata</b> app from your home screen and carry on there` : `Otevři appku <b>🦊 Zvířata</b> z plochy a pokračuj tam`}</span></div>` : `
+        <div class="lb-row"><span class="lb-rank">1</span><span>${EN ? `In Chrome, tap <b>⋮</b> at the top right<br><span class="vs">(Samsung Internet: <b>≡</b> at the bottom)</span>` : `V Chromu ťukni vpravo nahoře na <b>⋮</b><br><span class="vs">(Samsung Internet: dole na <b>≡</b>)</span>`}</span></div>
+        <div class="lb-row"><span class="lb-rank">2</span><span>${EN ? `Choose <b>Add to Home screen</b> or <b>Install app</b><br><span class="vs">(Samsung: <b>Add page to → Home screen</b>)</span>` : `Vyber <b>Přidat na plochu</b> nebo <b>Instalovat aplikaci</b><br><span class="vs">(Samsung: <b>Přidat stránku do → Plocha</b>)</span>`}</span></div>
+        <div class="lb-row"><span class="lb-rank">3</span><span>${EN ? `Confirm <b>Add</b> / <b>Install</b>` : `Potvrď <b>Přidat</b> / <b>Instalovat</b>`}</span></div>
+        <div class="lb-row"><span class="lb-rank">4</span><span>${EN ? `Open the <b>🦊 Zvířata</b> app from your home screen` : `Otevři appku <b>🦊 Zvířata</b> z plochy`}</span></div>`}
       </div>`}
-      <button class="btn ghost wide" data-act="onbNext">Pokračovat v prohlížeči</button>`;
+      <button class="btn ghost wide" data-act="onbNext">${t('Pokračovat v prohlížeči', 'Continue in the browser')}</button>`;
   } else if (step === 'nick') {
     body = `<div class="big-emoji">🏆</div>
-      <h1>Jak ti máme říkat?</h1>
-      <p class="muted" style="font-weight:700">Přezdívku uvidí kamarádi v žebříčku a v soubojích. Nic dalšího o tobě neukládáme.</p>
+      <h1>${t('Jak ti máme říkat?', 'What should we call you?')}</h1>
+      <p class="muted" style="font-weight:700">${t('Přezdívku uvidí kamarádi v žebříčku a v soubojích. Nic dalšího o tobě neukládáme.', 'Friends see your nickname on the leaderboard and in duels. We store nothing else about you.')}</p>
       <form data-form="onbNick" autocomplete="off">
-        <input class="typein" name="nick" maxlength="16" placeholder="Přezdívka (2–16 znaků)" autofocus ${O.saving ? 'disabled' : ''}>
-        <button class="btn primary wide" style="margin-top:12px" type="submit" ${O.saving ? 'disabled' : ''}>${O.saving ? 'Ukládám…' : 'Hotovo'}</button>
+        <input class="typein" name="nick" maxlength="16" placeholder="${t('Přezdívka (2–16 znaků)', 'Nickname (2–16 characters)')}" autofocus ${O.saving ? 'disabled' : ''}>
+        <button class="btn primary wide" style="margin-top:12px" type="submit" ${O.saving ? 'disabled' : ''}>${O.saving ? t('Ukládám…', 'Saving…') : t('Hotovo', 'Done')}</button>
       </form>
       ${O.error ? `<p style="color:var(--bad-ink);font-weight:700">${esc(O.error)}</p>` : ''}
-      <button class="btn ghost wide" data-act="onbNext">Přeskočit</button>`;
+      <button class="btn ghost wide" data-act="onbNext">${t('Přeskočit', 'Skip')}</button>`;
   }
   return `<div class="center" style="margin:auto 0;padding:10px 0">${dots}${body}</div>`;
 };
@@ -2014,6 +2195,7 @@ $app.addEventListener('click', e => {
     case 'cancelRename': S.B.rename = false; render(); break;
     case 'leaveBoard': leaveBoard(); break;
     case 'google': googleLogin(); break;
+    case 'lang': try { localStorage.setItem('zv-lang-v1', JSON.stringify(EN ? 'cs' : 'en')); } catch (e) { /* ignore */ } location.reload(); break;
     case 'feedback': go('feedback', { F: {} }); break;
     case 'logout': logout(); break;
     case 'sound':
@@ -2021,14 +2203,14 @@ $app.addEventListener('click', e => {
       if (!SOUND && 'speechSynthesis' in window) speechSynthesis.cancel();
       render(); break;
     case 'reset':
-      if (confirm('Opravdu smazat celý pokrok? Tohle nejde vrátit.')) {
+      if (confirm(t('Opravdu smazat celý pokrok? Tohle nejde vrátit.', 'Really reset all progress? This can’t be undone.'))) {
         PROGRESS = {}; STATS = { xp: 0, streak: 0, lastDay: null, lessons: 0 };
         store.del(K.prog); store.del(K.stats); render();
         if (ACCOUNT) cloudSync(true).catch(() => {}); else scheduleSync();
       }
       break;
     case 'quit':
-      if (S.L.done === 0 || confirm('Opravdu chceš skončit? Pokrok v této lekci se neuloží do série.')) go('home');
+      if (S.L.done === 0 || confirm(t('Opravdu chceš skončit? Pokrok v této lekci se neuloží do série.', 'Really quit? This lesson won’t count towards your streak.'))) go('home');
       break;
     case 'next': next(); break;
     case 'hint': S.L.queue[S.L.i].hint = true; render(); break;
@@ -2063,7 +2245,7 @@ $app.addEventListener('click', e => {
     case 'prevAnimal': case 'nextAnimal': {
       const nav = atlasNeighbours(ANIMALS.find(x => x.id === S.open));
       const to = act === 'prevAnimal' ? nav.prev : nav.next;
-      if (to) { EGG = false; S.open = to.id; S.openIdx = 0; render(); say(to.cz); }
+      if (to) { EGG = false; S.open = to.id; S.openIdx = 0; render(); say(to.name); }
       break;
     }
     case 'toggleMastered': {
@@ -2072,7 +2254,7 @@ $app.addEventListener('click', e => {
       break;
     }
     case 'practiceMistakes': startLesson(S.L.mistakes.map(m => m.a)); break;
-    case 'flip': if (!S.C.flipped) { S.C.flipped = true; render(); say(S.C.queue[S.C.i].cz); } break;
+    case 'flip': if (!S.C.flipped) { S.C.flipped = true; render(); say(S.C.queue[S.C.i].name); } break;
     case 'cardYes': case 'cardNo': {
       const C = S.C, ok = act === 'cardYes';
       record(C.queue[C.i], ok); if (ok) { C.yes++; addXp(1); }
@@ -2091,7 +2273,7 @@ $app.addEventListener('click', e => {
     case 'badImg': {
       const a = ANIMALS.find(x => x.id === S.open);
       const list = imgsOf(a); const url = list[Math.min(S.openIdx || 0, list.length - 1)];
-      if (url && confirm('Skrýt tuto fotku? (Např. když ukazuje něco jiného než zvíře.)')) {
+      if (url && confirm(t('Skrýt tuto fotku? (Např. když ukazuje něco jiného než zvíře.)', 'Hide this photo? (E.g. when it shows something other than the animal.)'))) {
         BAD.add(url); store.set(K.bad, [...BAD]); S.openIdx = 0;
         const y = window.scrollY; render(); window.scrollTo(0, y);
       }
@@ -2100,7 +2282,7 @@ $app.addEventListener('click', e => {
   }
 });
 
-const inAtlasView = (a, q = strip(S.q || '')) => (!S.fg || a.g === S.fg) && (!q || strip(a.cz + ' ' + a.la + ' ' + GROUP_BY_ID[a.g].name).includes(q));
+const inAtlasView = (a, q = strip(S.q || '')) => (!S.fg || a.g === S.fg) && (!q || strip(a.answers.join(' ') + ' ' + a.la + ' ' + GROUP_BY_ID[a.g].name).includes(q));
 function applyAtlasSearch() {
   const q = strip(S.q || '');
   let shown = 0;
