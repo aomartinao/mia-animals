@@ -158,7 +158,12 @@ test('detail: the action pills keep a clear gap above ‹ Zavřít ›', async (
   await openApp(page);
   await page.click('[data-act=atlas]');
   await page.click('[data-open="kapr obecný"]');
-  const pills = await page.locator('.detail-actions').boundingBox();
-  const nav = await page.locator('.detail-nav').boundingBox();
-  expect(nav.y - (pills.y + pills.height)).toBeGreaterThanOrEqual(16);
+  // Measure both in the same frame, after the slide-in animation: two separate boundingBox()
+  // calls can land in different animation frames and see different translateY offsets.
+  const gap = await page.locator('.detail').evaluate(async el => {
+    await Promise.all(el.getAnimations({ subtree: true }).map(an => an.finished.catch(() => {})));
+    const pills = el.querySelector('.detail-actions').getBoundingClientRect();
+    return el.querySelector('.detail-nav').getBoundingClientRect().top - pills.bottom;
+  });
+  expect(gap).toBeGreaterThanOrEqual(16);
 });
