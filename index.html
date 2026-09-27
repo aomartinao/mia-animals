@@ -296,6 +296,8 @@
   .detail-actions a { text-decoration: none; }
   .detail-actions { flex-wrap: nowrap; gap: 6px; margin: 0 0 20px; }
   .detail-nav { display: flex; gap: 8px; }
+  .start-choices { display: grid; gap: 10px; }
+  .start-choices .btn span { display: block; font-weight: 700; opacity: .8; margin-top: 3px; }
   .afilters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px 2px; padding: 0 16px 4px; }
   .afilters::-webkit-scrollbar { display: none; }
   .afilter { flex: none; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--muted); border-radius: 999px; padding: 6px 11px; font-size: 13px; font-weight: 700; white-space: nowrap; }
@@ -1497,7 +1499,11 @@ function mergeCloud(c) {
 }
 async function cloudSync(replace) {
   const a = await fbToken();
-  if (!replace) { const c = await cloudGet(a); if (c) mergeCloud(c); }
+  if (!replace) {
+    const c = await cloudGet(a);
+    if (c) mergeCloud(c);
+    if (c && c.name && !PLAYER) { PLAYER = { name: c.name }; store.set(K.player, PLAYER); }   // nickname set on another device
+  }
   await fsCall('PATCH', `users/${a.uid}`, fsDoc({ prog: JSON.stringify(PROGRESS), stats: JSON.stringify(STATS), ...(PLAYER ? { name: PLAYER.name } : {}), updated: new Date() }));
 }
 // Signing in on a device: take over the Google account's name (or bring this device's name along),
@@ -1886,8 +1892,10 @@ SCREENS.onboard = function () {
         <div class="lb-row"><span style="font-size:24px">📝</span><span>Zkouška nanečisto se známkou</span></div>
         <div class="lb-row"><span style="font-size:24px">🏆</span><span>Žebříček a souboje s kamarády</span></div>
       </div>
-      <button class="btn primary wide" data-act="onbNext" autofocus>Začít</button>
-      ${GOOGLE_OK ? `<button class="btn ghost wide" data-act="google" style="margin-top:8px">Už ji používám jinde – přihlásit přes Google</button>` : ''}`;
+      ${GOOGLE_OK ? `<div class="start-choices">
+        <button class="btn primary wide" data-act="onbNext">▶ Začít bez přihlášení<span class="small">Postup se uloží jen v tomhle zařízení</span></button>
+        <button class="btn primary wide" data-act="google">☁️ Přihlásit přes Google<span class="small">Postup na mobilu i počítači, přezdívka se neztratí</span></button>
+      </div>` : `<button class="btn primary wide" data-act="onbNext" autofocus>Začít</button>`}`;
   } else if (step === 'install') {
     const ios = (O.os || (isIOS ? 'ios' : 'android')) === 'ios';
     body = `<div class="big-emoji">📲</div>
