@@ -36,7 +36,7 @@ test('duel: same questions for the friend, one attempt, ranking by score then ti
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
     await setupMocks(ctx, { firebase: fb });
     const page = await ctx.newPage();
-    let dialog = ''; page.on('dialog', d => { dialog = d.message(); d.accept(); });
+    let dialog = ''; page.on('dialog', d => { dialog = d.message() + ' ' + d.defaultValue(); d.accept(); });
     page.lastDialog = () => dialog;
     return page;
   };
