@@ -87,6 +87,11 @@
   /* ===== Home ===== */
   .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 16px; }
   .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 24px; font-weight: 800; letter-spacing: -.03em; }
+  .logo-ring { position: relative; width: 52px; height: 52px; flex: none; }
+  .logo-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .logo-ring .logo { position: absolute; inset: 7px; width: 38px !important; height: 38px !important; font-size: 22px !important; }
+  .brand-text { display: flex; flex-direction: column; line-height: 1.05; }
+  .brand-text small { font-family: "Plus Jakarta Sans", sans-serif; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0; margin-top: 4px; }
   .brand .logo { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; font-size: 24px;
     background: linear-gradient(135deg, var(--green), #3ddc84); box-shadow: 0 6px 20px rgba(182,255,59,.35); }
   .stats { display: flex; gap: 8px; font-weight: 800; }
@@ -126,14 +131,14 @@
   .bar.thin { height: 6px; }
   .section-title { font-family: var(--display); font-weight: 800; font-size: 17px; letter-spacing: -.01em; margin: 22px 0 10px; display: flex; justify-content: space-between; align-items: center; }
   .section-title .small { font-family: "Plus Jakarta Sans", sans-serif; color: var(--muted); font-weight: 700; }
-  .groups { display: flex; gap: 10px; overflow-x: auto; margin: 0 -16px; padding: 2px 16px 10px; scroll-snap-type: x mandatory; scrollbar-width: none; }
-  .groups::-webkit-scrollbar { display: none; }
-  .group { background: rgba(255,255,255,.07); border: 1px solid var(--line); flex: none; width: 132px; scroll-snap-align: start; text-align: left; border-radius: 20px; padding: 12px; color: var(--ink); opacity: .55; transition: opacity .2s, transform .1s, border-color .2s; }
-  .group.on { opacity: 1; border-color: var(--gc, var(--green)); box-shadow: 0 0 0 1px var(--gc, var(--green)), 0 8px 24px -10px var(--gc, var(--green)); }
+  .groups { display: flex; flex-wrap: wrap; gap: 8px; }
+  .group { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px 11px; border-radius: 16px;
+    background: rgba(255,255,255,.07); border: 1px solid var(--line); color: var(--ink); opacity: .5; transition: opacity .2s, transform .1s, border-color .2s; font-weight: 800; font-size: 14px; }
+  .group.on { opacity: 1; border-color: var(--gc, var(--green)); box-shadow: 0 0 0 1px var(--gc, var(--green)), 0 6px 18px -10px var(--gc, var(--green)); }
   .group:active { transform: scale(.97); }
-  .group .gname { font-weight: 800; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
-  .group .gname .gi { font-size: 28px; }
-  .group .gcount { font-size: 12px; color: var(--muted); margin: 4px 0 8px; font-weight: 700; }
+  .group .gi { font-size: 18px; line-height: 1; }
+  .group .gcount { font-size: 12px; color: var(--muted); font-weight: 700; }
+  .group .gbar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--gc, var(--green)); box-shadow: 0 0 8px var(--gc, var(--green)); }
   .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .foot { margin-top: auto; padding-top: 26px; text-align: center; }
 
@@ -279,6 +284,8 @@
   .detail-body { max-width: 640px; margin: 0 auto; padding: 4px 16px calc(24px + env(safe-area-inset-bottom)); }
   .detail-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
   .detail-actions a { text-decoration: none; }
+  .btn.mastered-btn { margin-bottom: 6px; color: var(--green); }
+  .mastered-note { color: var(--green); font-weight: 800; margin: 4px 0; }
 </style>
 </head>
 <body>
@@ -644,6 +651,15 @@ function checkTyped(input, a) {
 }
 const pool = () => ANIMALS.filter(a => SELECTED.includes(a.g));
 const imgPool = () => pool().filter(hasImg);
+// "Umím na 100 %": taken out of lessons and flashcards (still in the exam and duels)
+const isKnown = a => prog(a).b >= MASTER || !!prog(a).done;
+const trainPool = () => imgPool().filter(a => !prog(a).done);
+const ALL_DONE_MSG = 'Všechna zvířata ve vybraných skupinách umíš na 100 % 🎉 Vyber další skupiny, nebo si dej Zkoušku nanečisto.';
+function setMastered(a, on) {
+  const p = prog(a);
+  if (on) { p.done = 1; p.b = 5; } else { p.done = 0; p.b = Math.min(p.b, MASTER - 1); }
+  saveProgress(); scheduleSync();
+}
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 function bumpStreak() {
   const t = today(), y = new Date(Date.now() - 864e5);
@@ -889,37 +905,33 @@ const SCREENS = {
 
   home() {
     const all = ANIMALS.length;
-    const known = ANIMALS.filter(a => prog(a).b >= MASTER).length;
+    const known = ANIMALS.filter(isKnown).length;
     const p = pool();
     const noImg = ANIMALS.filter(a => !hasImg(a));
-    const pct = known / all, R = 36, C = 2 * Math.PI * R;
+    const pct = known / all, R = 23, C = 2 * Math.PI * R;
     const dis = p.length ? '' : 'disabled';
     return `
     <div class="top">
-      <div class="brand"><span class="logo">🦊</span>Poznávačka</div>
+      <div class="brand">
+        <span class="logo-ring" title="Umíš ${known} z ${all}">
+          <svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="${R}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="4"/>
+            <circle cx="26" cy="26" r="${R}" fill="none" stroke="#b6ff3b" stroke-width="4" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/></svg>
+          <span class="logo">🦊</span></span>
+        <span class="brand-text">Poznávačka<small>Umíš ${known} z ${all} · ${Math.round(pct * 100)} %</small></span>
+      </div>
       <div class="stats"><span class="pillstat" title="Dny v řadě">🔥 ${currentStreak()}</span><span class="pillstat" title="Body">⭐ ${STATS.xp}</span></div>
     </div>
     ${IMG_STATE === 'failed' ? `<div class="warn">Nepodařilo se načíst obrázky z Wikipedie. Zkontroluj internet. <button class="btn ghost" data-act="retry">Zkusit znovu</button></div>` : ''}
-    <div class="glass progress-card">
-      <div class="ring"><svg width="84" height="84" viewBox="0 0 84 84">
-        <circle cx="42" cy="42" r="${R}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="9"/>
-        <circle cx="42" cy="42" r="${R}" fill="none" stroke="url(#rg)" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/>
-        <defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#b6ff3b"/><stop offset="1" stop-color="#3ddc84"/></linearGradient></defs>
-      </svg><b>${Math.round(pct * 100)}%</b></div>
-      <div><div class="pt">Umíš ${known} z ${all}</div>
-        <div class="muted small" style="font-weight:700;margin-top:4px">${weekXp() ? `Tento týden +${weekXp()} ⭐` : 'Dnes začni lekcí 👇'}</div></div>
-    </div>
 
     <div class="section-title"><span>Co procvičuješ</span>
       <button class="btn ghost small" data-act="toggleAll">${SELECTED.length === GROUPS.length ? 'Zrušit vše' : 'Vybrat vše'}</button></div>
     <div class="groups">
       ${GROUPS.map(g => {
         const list = ANIMALS.filter(a => a.g === g.id);
-        const k = list.filter(a => prog(a).b >= MASTER).length;
+        const k = list.filter(isKnown).length;
         return `<button class="group ${SELECTED.includes(g.id) ? 'on' : ''}" data-group="${g.id}" style="--gc:${g.color}">
-          <div class="gname"><span class="gi">${g.icon}</span>${g.name}</div>
-          <div class="gcount">${k} / ${list.length}</div>
-          <div class="bar thin"><i style="width:${k / list.length * 100}%;background:${g.color};box-shadow:0 0 10px ${g.color}"></i></div>
+          <span class="gi">${g.icon}</span><span class="gname">${g.name}</span><span class="gcount">${k}/${list.length}</span>
+          <i class="gbar" style="width:${k / list.length * 100}%"></i>
         </button>`;
       }).join('')}
     </div>
@@ -962,7 +974,7 @@ const SCREENS = {
         <div class="intro-name">${nameHtml(it.a)} ${speakBtn(it.a)}</div>
         <div class="intro-sub">${esc(it.a.la)} · ${GROUP_BY_ID[it.a.g].icon} ${GROUP_BY_ID[it.a.g].name}</div>
         <div class="spacer"></div>
-        <div class="feedback neutral"><button class="btn primary wide" data-act="next" autofocus>Pokračovat</button></div>`;
+        <div class="feedback neutral">${!L.exam && !L.duel ? `<button class="btn ghost small wide mastered-btn" data-act="mastered">✓ Umím na 100 % – už neukazovat</button>` : ''}<button class="btn primary wide" data-act="next" autofocus>Pokračovat</button></div>`;
     } else {
       body = questionBody(it, L);
     }
@@ -1016,7 +1028,8 @@ const SCREENS = {
         : `<span class="muted">Řekni jméno nahlas a pak ťukni na „Ukázat“.</span>`}</div>
       <div class="spacer"></div>
       <div class="feedback neutral">${C.flipped
-        ? `<div class="row"><button class="btn red" data-act="cardNo">😕 Nevěděl/a</button><button class="btn primary" data-act="cardYes">😎 Věděl/a</button></div>`
+        ? `<div class="row"><button class="btn red" data-act="cardNo">😕 Nevěděl/a</button><button class="btn primary" data-act="cardYes">😎 Věděl/a</button></div>
+           <button class="btn ghost small wide mastered-btn" data-act="cardMastered">✓ Umím na 100 % – už neukazovat</button>`
         : `<button class="btn blue wide" data-act="flip" autofocus>Ukázat</button>`}</div>`;
   },
   cardsEnd() {
@@ -1063,6 +1076,8 @@ function atlasModal() {
       <div class="intro-name">${nameHtml(a)} ${speakBtn(a)}</div>
       <div class="intro-sub">${esc(a.la)} · ${g.icon} ${g.name}</div>
       <p class="center small muted">Viděno ${p.s}×, správně ${p.c}×, špatně ${p.w}×</p>
+      ${p.done ? `<p class="center mastered-note">✓ Umíš na 100 %, v lekcích se už neukazuje</p>` : ''}
+      <div class="detail-actions"><button class="btn ${p.done ? '' : 'ghost'} small" data-act="toggleMastered">${p.done ? '↩️ Vrátit do procvičování' : '✓ Umím na 100 %'}</button></div>
       <div class="detail-actions">
         ${list.length ? `<button class="btn ghost small" data-act="badImg" title="Fotka nesedí? Skryj ji.">🚫 Tahle fotka nesedí</button>` : ''}
         <a class="btn ghost small" href="https://cs.wikipedia.org/wiki/${encodeURIComponent(a.la)}" target="_blank" rel="noopener">📖 Wikipedie</a>
@@ -1119,6 +1134,7 @@ function questionBody(it, L) {
       : `<b>${nameHtml(a)}</b>`;
     fb = `<div class="spacer"></div><div class="feedback ${st.ok ? 'ok' : 'bad'}">
       <h3>${st.ok ? '✅' : '❌'} ${title}</h3><p>${msg} ${speakBtn(a)}</p>
+      ${st.ok && !L.exam && !L.duel ? `<button class="btn ghost small wide mastered-btn" data-act="mastered">✓ Umím na 100 % – už neukazovat</button>` : ''}
       <button class="btn primary wide ${st.ok ? '' : 'bad'}" data-act="next" autofocus>Pokračovat</button></div>`;
   }
   return html + fb;
@@ -1128,8 +1144,8 @@ function questionBody(it, L) {
  *  Session builders                                                   *
  * ------------------------------------------------------------------ */
 function startLesson(fromList) {
-  const P = fromList || imgPool();
-  if (!P.length) { alert('Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.'); return; }
+  const P = fromList ? fromList.filter(a => !prog(a).done) : trainPool();
+  if (!P.length) { alert(imgPool().length ? ALL_DONE_MSG : 'Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.'); return; }
   const N = Math.min(12, Math.max(P.length, 4));
   let items = [];
   if (fromList) {
@@ -1177,8 +1193,8 @@ function startExam() {
 }
 
 function startCards() {
-  const P = imgPool();
-  if (!P.length) { alert('Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.'); return; }
+  const P = trainPool();
+  if (!P.length) { alert(imgPool().length ? ALL_DONE_MSG : 'Nejsou k dispozici žádné obrázky. Zkontroluj připojení k internetu.'); return; }
   const queue = P.map(a => ({ a, s: prog(a).b + Math.random() * 2 })).sort((x, y) => x.s - y.s).slice(0, 15).map(x => x.a);
   const C = { queue: shuffle(queue), i: 0, flipped: false, yes: 0 };
   C.img = pickImg(C.queue[0]);
@@ -1731,6 +1747,26 @@ $app.addEventListener('click', e => {
     case 'next': next(); break;
     case 'hint': S.L.queue[S.L.i].hint = true; render(); break;
     case 'dunno': { const it = S.L.queue[S.L.i]; answer(it, false, { typed: '', verdict: 'wrong' }); break; }
+    case 'mastered': {
+      const L = S.L, it = L.queue[L.i];
+      setMastered(it.a, true);
+      // drop this animal's remaining questions from the lesson
+      L.queue = L.queue.filter((q, k) => k <= L.i || q.a !== it.a);
+      L.total = L.queue.length;
+      next();
+      break;
+    }
+    case 'cardMastered': {
+      const C = S.C; setMastered(C.queue[C.i], true);
+      C.i++; C.flipped = false; EGG = false;
+      if (C.i >= C.queue.length) { go('cardsEnd', { C }); confetti(); } else { C.img = pickImg(C.queue[C.i]); render(); }
+      break;
+    }
+    case 'toggleMastered': {
+      const a = ANIMALS.find(x => x.id === S.open); setMastered(a, !prog(a).done);
+      const y = window.scrollY; render(); window.scrollTo(0, y);
+      break;
+    }
     case 'practiceMistakes': startLesson(S.L.mistakes.map(m => m.a)); break;
     case 'flip': if (!S.C.flipped) { S.C.flipped = true; render(); say(S.C.queue[S.C.i].cz); } break;
     case 'cardYes': case 'cardNo': {
