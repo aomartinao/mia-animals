@@ -501,7 +501,8 @@ const store = {
     try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); }
     catch (e) { return fallback; }
   },
-  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
+  frozen: false,                        // set on logout: late async writes must not bring data back
+  set(key, value) { if (store.frozen) return; try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } },
   del(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } },
 };
 const K = { prog: 'zv-progress-v1', stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v6', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1', hashes: 'zv-hashes-v1', dupes: 'zv-dupes-v1', account: 'zv-account-v1', glogin: 'zv-glogin-v1' };
@@ -1515,7 +1516,9 @@ async function switchAccount(g, email) {
 }
 async function logout() {
   if (!confirm('Odhlásit se? Pokrok zůstane uložený v Google účtu, z tohoto zařízení se smaže.')) return;
+  clearTimeout(syncTimer);
   await cloudSync().catch(() => {});
+  store.frozen = true;                                         // a sync still in flight must not write stats back
   for (const k of [K.auth, K.account, K.player, K.prog, K.stats, K.duels]) store.del(k);
   location.replace(location.origin + location.pathname);
 }
