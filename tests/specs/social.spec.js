@@ -1,0 +1,76 @@
+import { test, expect } from '@playwright/test';
+import { setupMocks, openApp, playThrough, FakeFirebase } from '../helpers.js';
+
+test('leaderboard: join, see others, rename, leave', async ({ browser }) => {
+  const fb = new FakeFirebase();
+  const player = async (name, lessons) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await setupMocks(ctx, { firebase: fb });
+    const page = await ctx.newPage();
+    await openApp(page);
+    for (let i = 0; i < lessons; i++) { await page.click('[data-act=lesson]'); await playThrough(page); await page.click('[data-act=home]'); }
+    await page.click('[data-act=board]');
+    await page.fill('input[name=nick]', name);
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('.lb-row');
+    return page;
+  };
+  await player('Mia', 2);
+  const tom = await player('Tom', 1);
+  await tom.click('[data-act=tabWeek]');
+  await expect(tom.locator('.lb-row').first()).toContainText('Mia');
+  await expect(tom.locator('.lb-row.me')).toContainText('Tom');
+  await tom.click('[data-act=rename]');
+  await tom.fill('input[name=nick]', 'Tomáš');
+  await tom.keyboard.press('Enter');
+  await expect(tom.locator('.lb-row.me')).toContainText('Tomáš');
+  tom.on('dialog', d => d.accept());
+  await tom.click('[data-act=leaveBoard]');
+  await tom.waitForFunction(() => S.screen === 'home');
+  expect([...fb.db.keys()].filter(k => k.endsWith('uid2'))).toEqual([]);
+});
+
+test('duel: same questions for the friend, one attempt, ranking by score then time', async ({ browser }) => {
+  const fb = new FakeFirebase();
+  const newPlayer = async () => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await setupMocks(ctx, { firebase: fb });
+    const page = await ctx.newPage();
+    let dialog = ''; page.on('dialog', d => { dialog = d.message() + ' ' + d.defaultValue(); d.accept(); });
+    page.lastDialog = () => dialog;
+    return page;
+  };
+  const mia = await newPlayer();
+  await openApp(mia);
+  await mia.click('[data-act=duels]');
+  await mia.click('[data-act=newDuel]');
+  await mia.fill('input[name=nick]', 'Mia');
+  await mia.keyboard.press('Enter');
+  await mia.waitForFunction(() => S.screen === 'lesson');
+  const miaQs = await mia.evaluate(() => S.L.queue.map(i => i.a.id + ':' + i.type));
+  expect(miaQs.every(q => !q.endsWith(':type') && !q.endsWith(':intro'))).toBe(true);
+  await playThrough(mia, { wrongAt: [3] });
+  await mia.waitForSelector('.lb-row');
+  await mia.click('[data-act=shareDuel]');
+  await expect.poll(() => mia.lastDialog()).toContain('?duel=');
+  const link = mia.lastDialog().match(/http\S+/)[0];
+
+  const tom = await newPlayer();
+  await tom.goto(link);
+  await tom.waitForSelector('[data-act=playDuel]');
+  await tom.click('[data-act=playDuel]');
+  await tom.fill('input[name=nick]', 'Tom');
+  await tom.keyboard.press('Enter');
+  await tom.click('[data-act=playDuel]');
+  expect(await tom.evaluate(() => S.L.queue.map(i => i.a.id + ':' + i.type))).toEqual(miaQs);
+  await playThrough(tom);
+  await tom.waitForSelector('.lb-row');
+  const rows = await tom.locator('.lb-row').allInnerTexts();
+  expect(rows[0]).toContain('Tom');
+  expect(rows[1]).toContain('Mia');
+  await tom.goto(link);
+  await tom.waitForSelector('.lb-row');
+  await expect(tom.locator('[data-act=playDuel]')).toHaveCount(0);        // no second attempt
+  await tom.goto('/?duel=doesnotexist1');
+  await expect(tom.locator('.warn')).toContainText('neexistuje');
+});

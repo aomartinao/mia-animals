@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Nickname filter (word list checks + generated blocks up to date)
+        run: |
+          node tools/nickfilter.mjs --test
+          node tools/nickfilter.mjs
+          git diff --exit-code -- index.html firestore.rules
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: App tests (Playwright)
+        working-directory: tests
+        env:
+          CI: true
+        run: npx playwright test
+
+      - name: Upload failure details
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: tests/test-results/
+          retention-days: 7
