@@ -28,6 +28,37 @@ test('leaderboard: join, see others, rename, leave', async ({ browser }) => {
   await tom.click('[data-act=leaveBoard]');
   await tom.waitForFunction(() => S.screen === 'home');
   expect([...fb.db.keys()].filter(k => k.endsWith('uid2'))).toEqual([]);
+  expect([...fb.db.keys()].filter(k => k.startsWith('names/'))).toEqual(['names/mia']);   // rename + leave freed Tom's names
+});
+
+test('nicknames are unique (ignoring case and diacritics); migration asks the loser to rename', async ({ browser }) => {
+  const fb = new FakeFirebase();
+  const open = async (init) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await setupMocks(ctx, { firebase: fb });
+    if (init) await ctx.addInitScript(init);
+    const page = await ctx.newPage();
+    await openApp(page);
+    return page;
+  };
+  const join = async (page, name) => { await page.click('[data-act=board]'); await page.fill('input[name=nick]', name); await page.keyboard.press('Enter'); };
+  const a = await open();
+  await join(a, 'Gandalf');
+  await a.waitForSelector('.lb-row');
+  const b = await open();
+  await join(b, 'gandalf');
+  await expect(b.locator('.hero')).toContainText('už někdo má');
+  await b.fill('input[name=nick]', 'Gandalf2');
+  await b.keyboard.press('Enter');
+  await expect(b.locator('.lb-row.me')).toContainText('Gandalf2');
+  // Old player who joined before names existed, with a name someone else owns now.
+  const c = await open(() => localStorage.setItem('zv-player-v1', JSON.stringify({ name: 'Gándalf' })));
+  await c.click('[data-act=board]');
+  await expect(c.locator('.hero')).toContainText('už někdo má');
+  await c.fill('input[name=nick]', 'Pippin');
+  await c.keyboard.press('Enter');
+  await expect(c.locator('.lb-row.me')).toContainText('Pippin');
+  expect([...fb.db.keys()].filter(k => k.startsWith('names/')).sort()).toEqual(['names/gandalf', 'names/gandalf2', 'names/pippin']);
 });
 
 test('duel: same questions for the friend, one attempt, ranking by score then time', async ({ browser }) => {

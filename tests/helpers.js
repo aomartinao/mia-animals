@@ -16,6 +16,9 @@ export const wikimediaUrl = (fixtureName, tag) => {
 };
 
 /** In-memory stand-in for Firebase anonymous auth + Firestore REST. */
+const FOLD = { á: 'a', à: 'a', â: 'a', ä: 'a', č: 'c', ď: 'd', é: 'e', ě: 'e', ë: 'e', í: 'i', ï: 'i', ň: 'n', ó: 'o', ö: 'o', ô: 'o', ř: 'r', š: 's', ť: 't', ú: 'u', ů: 'u', ü: 'u', ý: 'y', ž: 'z' };
+export const nameKey = n => n.toLowerCase().replace(/[áàâäčďéěëíïňóöôřšťúůüýž]/g, c => FOLD[c]).replace(/[^a-z0-9]/g, '');
+
 export class FakeFirebase {
   constructor() { this.db = new Map(); this.n = 0; }
   async attach(context) {
@@ -44,12 +47,25 @@ export class FakeFirebase {
         docs = docs.slice(0, q.limit || 100).map(([k, v]) => ({ document: { name: 'projects/mia-animals/databases/(default)/documents/' + k, fields: v.fields } }));
         return J(docs.length ? docs : [{ readTime: 'x' }]);
       }
-      const key = p.replace(/^\//, '');
+      const key = p.replace(/^\//, '').split('?')[0];
       if (m === 'GET') return this.db.has(key) ? J(this.db.get(key)) : J({ error: 'not found' }, 404);
       const body = req.postData() ? JSON.parse(req.postData()) : null;
+      if (key.startsWith('names/')) {
+        // Nickname registry: create only, owner may delete.
+        const cur = this.db.get(key);
+        if (m === 'PATCH' && !cur && body.fields.uid.stringValue === uid) { this.db.set(key, body); return J(body); }
+        if (m === 'DELETE' && cur && cur.fields.uid.stringValue === uid) { this.db.delete(key); return J({}); }
+        return J({ error: 'denied' }, 403);
+      }
       const owner = /^duels\/[^/]+$/.test(key) ? body && body.fields.by.stringValue : key.split('/').pop();
       if (owner !== uid) return J({ error: 'denied' }, 403);
       if (key.startsWith('duels/') && this.db.has(key)) return J({ error: 'create only' }, 403);
+      if (m === 'PATCH') {
+        // Like the rules: the name written must belong to the writer.
+        const n = body.fields.name || body.fields.byName;
+        const nk = n && 'names/' + nameKey(n.stringValue);
+        if (n && (!this.db.has(nk) || this.db.get(nk).fields.uid.stringValue !== uid)) return J({ error: 'name not owned' }, 403);
+      }
       if (m === 'PATCH') { this.db.set(key, body); return J(body); }
       if (m === 'DELETE') { this.db.delete(key); return J({}); }
       return J({}, 400);
