@@ -1000,7 +1000,7 @@ const SCREENS = {
         <button class="btn ghost small" data-act="logout">Odhlásit</button></div>`
       : `<button class="btn wide" data-act="google" style="margin-bottom:10px">☁️ Přihlásit přes Google <span class="small muted">· pokrok na mobilu i počítači</span></button>`}
       <button class="btn wide" data-act="share" style="margin-bottom:10px">📤 Pošli apku kamarádům</button>
-      <button class="btn wide" data-act="feedback" style="margin-bottom:10px">💬 Nápad nebo chyba? Napiš nám</button>
+      <button class="btn wide" data-act="feedback" style="margin-bottom:10px">💬 Nápad nebo chyba? Napiš Gandalfovi</button>
       <button class="btn ghost small" data-act="sound">${SOUND ? '🔊 Zvuk zapnutý' : '🔇 Zvuk vypnutý'}</button>
       <button class="btn ghost small" data-act="reset">Smazat pokrok</button>
       ${noImg.length && IMG_STATE === 'ok' ? `<div class="muted small" style="margin-top:6px">Bez obrázku (nebudou v otázkách): ${noImg.map(a => esc(a.cz)).join(', ')}</div>` : ''}
@@ -1549,7 +1549,7 @@ SCREENS.feedback = function () {
   const F = S.F;
   const head = `<div class="lesson-top"><button class="x" data-act="home" title="Zpět">✕</button><h2 style="flex:1">💬 Nápad nebo chyba</h2></div>`;
   if (F.sent) return head + `<div class="hero center"><div class="big-emoji">💚</div><h2>Díky!</h2>
-    <p class="muted" style="font-weight:700">Přečteme si to. Klidně napiš i další nápad.</p>
+    <p class="muted" style="font-weight:700">Gandalf si to přečte. Klidně napiš i další nápad.</p>
     <button class="btn primary wide" data-act="home">Domů</button>
     <button class="btn ghost wide" data-act="feedback" style="margin-top:8px">Napsat další</button></div>`;
   return head + `<p class="muted" style="font-weight:700">Co bys změnil/a, co ti chybí, nebo co nefunguje? Špatná fotka, špatné jméno, nápad na novou hru… Nepiš sem své jméno ani kontakt.</p>
