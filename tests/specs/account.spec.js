@@ -110,3 +110,15 @@ test('old address stays put until the new one is live and switched on; home-scre
   expect(href).toMatch(/^https:\/\/mia-animals\.web\.app\/#import=/);
   expect(JSON.parse(decodeURIComponent(href.split('#import=')[1])).stats.xp).toBe(42);
 });
+
+test('moving from the old address keeps a Czech player in Czech even on an English phone', async ({ browser }) => {
+  const ctx = await browser.newContext({ locale: 'en-GB', viewport: { width: 390, height: 844 } });
+  await setupMocks(ctx, { firebase: new FakeFirebase(), lang: null, onboarded: false });   // the new address knows nothing yet
+  await ctx.addInitScript(oldData);
+  const page = await ctx.newPage();
+  await serveHosts(ctx);
+  await page.goto('https://aomartinao.github.io/mia-animals/');
+  await page.waitForURL(/mia-animals\.web\.app\/$/);
+  await page.waitForFunction(() => typeof S !== 'undefined' && S.screen === 'home');
+  expect(await page.evaluate(() => [LANG, STATS.xp, PROGRESS.kapr.b, PLAYER.name])).toEqual(['cs', 42, 3, 'Mia']);
+});

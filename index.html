@@ -726,7 +726,9 @@ const MOVE_KEYS = ['prog', 'stats', 'sel', 'bad', 'sound', 'hide', 'focus', 'who
     const d = JSON.parse(decodeURIComponent(m[1]));
     const mine = store.get(K.stats, null);
     if (mine && (mine.xp || 0) >= ((d.stats || {}).xp || 0)) return;   // this device already has more
-    for (const k of MOVE_KEYS) if (d[k] !== undefined) store.set(K[k], d[k]);
+    // Everything on the old address was Czech: keep it Czech here, whatever the phone's language.
+    for (const k of MOVE_KEYS) if (d[k] !== undefined) store.set(k === 'prog' ? PROG_KEY.cs : K[k], d[k]);
+    if (d.onboarded) { store.set('zv-lang-v1', 'cs'); if (EN) location.reload(); }
   } catch (e) { /* ignore */ }
 })();
 
