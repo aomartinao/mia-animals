@@ -76,9 +76,13 @@ export class FakeFirebase {
       }
       if (key.startsWith('users/') && m !== 'DELETE' && !this.googleUids.has(uid)) return J({ error: 'google only' }, 403);
       if (key.startsWith('names/')) {
-        // Nickname registry: create only, owner may delete.
-        const cur = this.db.get(key);
-        if (m === 'PATCH' && !cur && body.fields.uid.stringValue === uid) { this.db.set(key, body); return J(body); }
+        // Nickname registry, like the rules: create if free; update by the owner, or take over a name whose
+        // non-Google owner hasn't played for 60 days; the owner may delete; `google` must match the sign-in.
+        const cur = this.db.get(key), f = cur && cur.fields;
+        const abandoned = f && !(f.google && f.google.booleanValue) && f.at && Date.now() - Date.parse(f.at.timestampValue) > 60 * 864e5;
+        const okBody = m === 'PATCH' && body.fields.uid.stringValue === uid
+          && (!body.fields.google || body.fields.google.booleanValue === this.googleUids.has(uid));
+        if (okBody && (!cur || f.uid.stringValue === uid || abandoned)) { this.db.set(key, body); return J(body); }
         if (m === 'DELETE' && cur && cur.fields.uid.stringValue === uid) { this.db.delete(key); return J({}); }
         return J({ error: 'denied' }, 403);
       }

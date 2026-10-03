@@ -36,12 +36,28 @@ service cloud.firestore {
     // END NICKFILTER
 
     // Nickname registry: first come, first served; only the owner can free it.
+    // `at` = last time the owner played (refreshed daily), `google` = owner signed in with Google.
+    // A name whose owner isn't signed in with Google and hasn't played for 60 days can be taken over.
+    function nameData() {
+      return request.resource.data.keys().hasOnly(['uid', 'at', 'google'])
+        && request.resource.data.uid == request.auth.uid
+        && (!('at' in request.resource.data) || (request.resource.data.at is timestamp
+            && request.resource.data.at > request.time - duration.value(1, 'd')
+            && request.resource.data.at < request.time + duration.value(1, 'd')))
+        && (!('google' in request.resource.data)
+            || request.resource.data.google == (request.auth.token.firebase.sign_in_provider == 'google.com'));
+    }
+    function nameAbandoned() {
+      return resource.data.get('google', false) != true
+        && 'at' in resource.data && resource.data.at < request.time - duration.value(60, 'd');
+    }
     match /names/{key} {
       allow read: if true;
       allow create: if request.auth != null
         && key.matches('^[a-z0-9]{2,32}$')
-        && request.resource.data.keys().hasOnly(['uid'])
-        && request.resource.data.uid == request.auth.uid;
+        && nameData();
+      allow update: if request.auth != null && nameData()
+        && (resource.data.uid == request.auth.uid || nameAbandoned());
       allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
 
