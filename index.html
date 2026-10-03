@@ -715,7 +715,7 @@ const store = {
 };
 // Each language has its own progress: knowing Czech names and knowing English names are different things.
 const PROG_KEY = { cs: 'zv-progress-v1', en: 'zv-progress-en-v1' };
-const K = { prog: PROG_KEY[LANG], stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v6', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1', hashes: 'zv-hashes-v1', dupes: 'zv-dupes-v1', account: 'zv-account-v1', glogin: 'zv-glogin-v1' };
+const K = { prog: PROG_KEY[LANG], stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v7', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1', hashes: 'zv-hashes-v1', dupes: 'zv-dupes-v1', account: 'zv-account-v1', glogin: 'zv-glogin-v1' };
 
 // Moving from GitHub Pages to Firebase Hosting: the old site sends everything along in the URL fragment.
 const NEW_HOME = 'https://mia-animals.web.app/';
@@ -801,7 +801,8 @@ async function loadImages(force) {
     const data = {};
     ANIMALS.forEach(a => {
       const list = [];
-      [en[a.la], csLa[a.la] || csCz[a.cz], ...others.map(o => o[a.la])].forEach(u => {
+      // Homo sapiens: only the English and Czech lead photos; other Wikipedias use nude photos/drawings (not for kids)
+      [en[a.la], csLa[a.la] || csCz[a.cz], ...(a.id === HUMAN ? [] : others.map(o => o[a.la]))].forEach(u => {
         if (u && list.length < MAX_PHOTOS && !isMapImage(u) && !list.some(x => fileKey(x) === fileKey(u))) list.push(u);
       });
       if (list.length) data[a.id] = list;
@@ -824,8 +825,14 @@ const BLOCKED_FILES = new Set([
   'Human.svg',                       // člověk rozumný: drawing
   'Sphyrna_zygaena_distmap.png',     // kladivoun obecný: distribution map
   'Herringjuvenilekils.jpg',         // sleď obecný: reported as wrong
+  'Bundesarchiv_Bild_183-1983-0815-302,_FKK-Strände_des_Senftenberger_Erholungsgebietes.jpg',   // člověk: nude beach photo (it.wikipedia)
+  'Human.png',                       // člověk rozumný: nude Pioneer plaque drawing
+  'Pioneer_plaque_humans.svg',       // člověk rozumný: nude Pioneer plaque drawing
 ]);
-const isMapImage = u => BLOCKED_FILES.has(fileKey(u)) || MAP_RE.test(fileKey(u).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/_/g, ' '));
+const HUMAN = 'člověk rozumný';
+// Never show nudity, whatever a Wikipedia picks as its lead image
+const NUDE_RE = /fkk|nudis|naturis|nackt|nude|naked|pioneer.?plaque/i;
+const isMapImage = u => BLOCKED_FILES.has(fileKey(u)) || NUDE_RE.test(fileKey(u)) || MAP_RE.test(fileKey(u).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/_/g, ' '));
 const imgsOf = a => (IMAGES[a.id] || []).filter(u => !BAD.has(u) && !isMapImage(u) && !DUPES.has(fileKey(u)));
 
 /* Same photo under different file names (re-uploads, resized, mirrored) is
