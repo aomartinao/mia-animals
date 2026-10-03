@@ -302,6 +302,8 @@
   .detail-actions { flex-wrap: nowrap; gap: 6px; margin: 0 0 20px; }
   .detail-nav { display: flex; gap: 8px; }
   .start-choices { display: grid; gap: 10px; }
+  .board-signin { margin: 16px 0 4px; padding: 14px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); }
+  .board-signin p { margin: 0 0 10px; font-weight: 700; font-size: 14px; color: var(--muted); }
   /* Onboarding */
   .onb-hero { position: relative; display: grid; place-items: center; margin: 8px 0 6px; }
   .onb-hero::before { content: ''; position: absolute; width: 190px; height: 190px; border-radius: 50%;
@@ -1611,9 +1613,9 @@ async function fbToken() {
   a = { uid: j.localId, id: j.idToken, refresh: j.refreshToken, exp: Date.now() + (+j.expiresIn) * 1000 };
   store.set(K.auth, a); return a;
 }
-const fsVal = v => typeof v === 'string' ? { stringValue: v } : Number.isInteger(v) ? { integerValue: String(v) } : { timestampValue: v.toISOString() };
+const fsVal = v => typeof v === 'string' ? { stringValue: v } : typeof v === 'boolean' ? { booleanValue: v } : Number.isInteger(v) ? { integerValue: String(v) } : { timestampValue: v.toISOString() };
 const fsDoc = obj => ({ fields: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, fsVal(v)])) });
-const fsRead = f => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, v.stringValue ?? (v.integerValue != null ? +v.integerValue : v.timestampValue)]));
+const fsRead = f => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, v.stringValue ?? v.booleanValue ?? (v.integerValue != null ? +v.integerValue : v.timestampValue)]));
 async function fsCall(method, path, body, auth) {
   const a = auth || await fbToken();
   const r = await fetch(path.startsWith(':') ? FS + path : `${FS}/${path}`, {
@@ -1629,15 +1631,19 @@ function scheduleSync() { if (!PLAYER && !ACCOUNT) return; clearTimeout(syncTime
 // Nicknames are unique: names/{key} belongs to one uid. The key mirrors nameKey() in firestore.rules.
 const NAME_FOLD = { á: 'a', à: 'a', â: 'a', ä: 'a', č: 'c', ď: 'd', é: 'e', ě: 'e', ë: 'e', í: 'i', ï: 'i', ň: 'n', ó: 'o', ö: 'o', ô: 'o', ř: 'r', š: 's', ť: 't', ú: 'u', ů: 'u', ü: 'u', ý: 'y', ž: 'z' };
 const nameKey = n => n.toLowerCase().replace(/[áàâäčďéěëíïňóöôřšťúůüýž]/g, c => NAME_FOLD[c]).replace(/[^a-z0-9]/g, '');
-const nameOwner = async key => { try { return fsRead((await fsCall('GET', `names/${key}`)).fields).uid; } catch (e) { if (/404/.test(e.message)) return null; throw e; } };
+// A nickname not used for NAME_TTL_DAYS by a player who isn't signed in with Google can be taken by someone else
+// (names/{key}.at is refreshed once a day while the owner plays; Google accounts keep theirs for good).
+const NAME_TTL_DAYS = 60;
+const nameDoc = async key => { try { return fsRead((await fsCall('GET', `names/${key}`)).fields); } catch (e) { if (/404/.test(e.message)) return null; throw e; } };
+const nameOwner = async key => { const d = await nameDoc(key); return d ? d.uid : null; };
+const nameFree = d => !d.google && !!d.at && Date.now() - Date.parse(d.at) > NAME_TTL_DAYS * 864e5;
 async function claimName(name) {
   const a = await fbToken(), key = nameKey(name);
-  let owner = await nameOwner(key);
-  if (!owner) {
-    try { await fsCall('PATCH', `names/${key}?currentDocument.exists=false`, fsDoc({ uid: a.uid })); owner = a.uid; }
-    catch (e) { owner = await nameOwner(key); }
-  }
-  if (owner !== a.uid) throw new Error('taken');
+  const body = fsDoc({ uid: a.uid, at: new Date(), google: !!ACCOUNT });
+  const d = await nameDoc(key);
+  if (d && d.uid !== a.uid && !nameFree(d)) throw new Error('taken');
+  try { await fsCall('PATCH', d ? `names/${key}` : `names/${key}?currentDocument.exists=false`, body); }
+  catch (e) { if (await nameOwner(key) !== a.uid) throw new Error('taken'); }
   return a.uid;
 }
 async function releaseName(name) {
@@ -1645,10 +1651,10 @@ async function releaseName(name) {
   if (key.length >= 2 && await nameOwner(key) === a.uid) await fsCall('DELETE', `names/${key}`);
 }
 async function ensureName() {
-  const a = await fbToken();
-  if (PLAYER.uid === a.uid) return;
+  const a = await fbToken(), day = today();
+  if (PLAYER.uid === a.uid && PLAYER.day === day) return;   // once a day: keep the name alive (and notice if it was taken)
   await claimName(PLAYER.name);
-  PLAYER.uid = a.uid; store.set(K.player, PLAYER);
+  PLAYER.uid = a.uid; PLAYER.day = day; store.set(K.player, PLAYER);
 }
 async function syncPlayer() {
   if (ACCOUNT) await cloudSync();
@@ -1898,6 +1904,10 @@ SCREENS.board = function () {
           <span class="lb-rank">${medal(i)}</span><span class="lb-name">${esc(r.name)}${r.uid === B.me ? t(' (ty)', ' (you)') : ''}</span>
           <span class="lb-val">${unit} ${r[field] || 0}</span></div>`).join('')}</div>`
       : `<div class="center muted" style="padding:30px;font-weight:700">${t('Zatím tu nikdo není. Buď první!', 'Nobody here yet. Be the first!')}</div>`}
+    ${GOOGLE_OK && !ACCOUNT ? `<div class="board-signin">
+      <p>${EN ? `🔒 Sign in with Google so you never lose your nickname. Without it, a nickname is freed after ${NAME_TTL_DAYS} days of not playing.`
+        : `🔒 Přihlas se přes Google, ať o přezdívku nepřijdeš. Bez přihlášení se uvolní, když ${NAME_TTL_DAYS} dní nehraješ.`}</p>
+      ${googleBtn('')}</div>` : ''}
     <div class="foot">
       <button class="btn ghost small" data-act="rename">${t('✏️ Změnit přezdívku', '✏️ Change nickname')}</button>
       <button class="btn ghost small" data-act="leaveBoard">${t('Odejít ze žebříčku', 'Leave the leaderboard')}</button>

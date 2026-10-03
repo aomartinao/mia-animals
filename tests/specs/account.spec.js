@@ -30,6 +30,7 @@ test('Google login: progress and nickname follow the account to another device; 
   expect(fb.db.has('players/uid1')).toBe(false);
   expect(fb.db.get('players/gmia').fields.name.stringValue).toBe('Mia');
   expect(fb.db.get('names/mia').fields.uid.stringValue).toBe('gmia');
+  expect(fb.db.get('names/mia').fields.google.booleanValue).toBe(true);   // never expires
   expect(fb.db.has('users/gmia')).toBe(true);
 
   // Computer: sign in straight from onboarding.

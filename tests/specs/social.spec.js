@@ -136,3 +136,27 @@ test('board hides old duplicate entries of a nickname that now belongs to someon
   await page.waitForSelector('.lb-row.me');
   expect(await page.locator('.lb-row').allInnerTexts()).toHaveLength(1);
 });
+
+test('a nickname nobody has played with for 60 days (without Google) can be taken; Google names never expire', async ({ browser }) => {
+  const fb = new FakeFirebase();
+  const nameDoc = (uid, daysAgo, google) => ({ fields: { uid: { stringValue: uid }, at: { timestampValue: new Date(Date.now() - daysAgo * 864e5).toISOString() }, ...(google ? { google: { booleanValue: true } } : {}) } });
+  fb.db.set('names/frodo', nameDoc('old1', 70));
+  fb.db.set('names/sam', nameDoc('old2', 10));
+  fb.db.set('names/bilbo', nameDoc('old3', 400, true));
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await setupMocks(ctx, { firebase: fb });
+  const page = await ctx.newPage();
+  await openApp(page);
+  await page.click('[data-act=board]');
+  for (const taken of ['Sam', 'Bilbo']) {
+    await page.fill('input[name=nick]', taken);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.hero')).toContainText('už někdo má');
+  }
+  await page.fill('input[name=nick]', 'Frodo');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.lb-row.me')).toContainText('Frodo');
+  expect(fb.db.get('names/frodo').fields.uid.stringValue).toBe('uid1');
+  // not signed in with Google: the board suggests it
+  await expect(page.locator('.board-signin')).toContainText('60 dní');
+});
