@@ -11,7 +11,8 @@
       ".github/**",
       "firebase.json",
       "README.md",
-      "firestore.rules"
+      "firestore.rules",
+      "docs/**"
     ],
     "headers": [
       {
