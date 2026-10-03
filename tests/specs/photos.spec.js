@@ -46,3 +46,17 @@ test('every one of the 147 animals has at least one photo', async ({ context, pa
   expect(await page.evaluate(() => ANIMALS.length)).toBe(147);
   expect(await page.evaluate(() => ANIMALS.filter(a => !hasImg(a)).map(a => a.id))).toEqual([]);
 });
+
+test('Homo sapiens never shows the nude photos and drawings other Wikipedias use', async ({ context, page }) => {
+  await setupMocks(context, {
+    photos: (host, t) => t === 'Homo sapiens' && host === 'it' ? 'p1.jpg' : defaultPhotos(host, t),
+  });
+  await openApp(page);
+  // only English + Czech sources for the human
+  expect((await shown(page, 'člověk rozumný')).length).toBeLessThanOrEqual(2);
+  expect(await page.evaluate(() => [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Bundesarchiv_Bild_183-1983-0815-302%2C_FKK-Str%C3%A4nde_des_Senftenberger_Erholungsgebietes.jpg/640px-Bundesarchiv_Bild_183-1983-0815-302%2C_FKK-Str%C3%A4nde_des_Senftenberger_Erholungsgebietes.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Human.png/640px-Human.png',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Akha_cropped_hires.JPG/640px-Akha_cropped_hires.JPG',
+  ].map(isMapImage))).toEqual([true, true, false]);
+});
