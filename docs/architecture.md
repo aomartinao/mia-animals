@@ -110,8 +110,8 @@ is used directly over its REST APIs (no Firebase SDK).
 
 ## Zero-G page (`learn/`)
 
-A separate page (`learn/index.html`) for Mia's Zero-G selection test. It drills private study cards
-with the same lesson rhythm as the animals. Only the accounts in `ZEROG_UIDS` (index.html) and
+A separate page (`learn/index.html`) that drills a private deck of study cards with the same lesson
+rhythm as the animals. Only the accounts in `ZEROG_UIDS` (index.html) and
 `zeroG()` (firestore.rules) can use it; the two lists must match.
 
 - **Content:** the Firestore document `private/zero-g-2026` holds one string field `data`, a JSON
@@ -136,7 +136,7 @@ with the same lesson rhythm as the animals. Only the accounts in `ZEROG_UIDS` (i
 - **Practice test:** 25 cards across the chapters, about 40 % from why/think/calc; it doesn't change
   the boxes. No XP, streak, leaderboard or duels.
 - **Reporting a card** writes to the public `feedback` collection: only `[zero-g] <card id>` and
-  Mia's note, never card text.
+  the reporter's note, never card text.
 
 ## Moving from GitHub Pages
 

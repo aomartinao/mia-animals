@@ -45,7 +45,7 @@ validate them there, then upload them again to the Firestore document `private/z
 (field `data`). The page picks up the new version on its next load.
 
 To give another account access, add its uid to both `ZEROG_UIDS` in `index.html` and `zeroG()` in
-`firestore.rules`. Mia's reports about wrong cards arrive in `feedback` as `[zero-g] <card id>: …`.
+`firestore.rules`. Reports about wrong cards arrive in `feedback` as `[zero-g] <card id>: …`.
 
 ## Deploy
 

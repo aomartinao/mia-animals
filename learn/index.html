@@ -218,7 +218,7 @@ const FB = { apiKey: 'AIzaSyCf2xGCpl1vmyYA0j9QVdZhL6y2nfKETgc', projectId: 'mia-
 const FS = `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents`;
 const COURSE_DOC = 'private/zero-g-2026';
 const MASTER = 3;                 // box >= MASTER counts as "umím"
-const LESSON_N = 12, NEW_PER_LESSON = 4, EXAM_N = 25, EXAM_SECONDS = 45;
+const LESSON_N = 16, NEW_PER_LESSON = 6, EXAM_N = 25, EXAM_SECONDS = 45;   // 6 new cards a lesson: the deck has ~330
 const PRAISE = ['Výborně!', 'Super!', 'Paráda!', 'Skvělé!', 'Přesně tak!', 'Jde ti to!', 'Bezva!'];
 
 let COURSE = null, CARDS = [], CHAPTERS = [];
@@ -401,8 +401,10 @@ const words = s => String(s).trim().split(/\s+/).length;
 // "why" and "think" cards work with facts rather than recall one: no fill-the-gap, no true/false.
 const REASON = ['why', 'think', 'calc'];
 const isReason = c => REASON.includes(c.kind);
-// Typed only for short answers (a number, a date, or up to 3 words); "why" cards are never typed.
-const shortA = c => c.kind !== 'why' && (c.kind === 'date' || c.kind === 'number' || parseNum(c.a) != null || words(c.a) <= 3);
+// Typed only for short answers: up to 3 words, or a date/number of up to 5 ("více než 1 600 hodin").
+// "why" cards are never typed, "think" cards only when the answer is a number ("49 let").
+const shortA = c => c.kind === 'think' ? [c.a, ...(c.alt || [])].some(x => parseNum(x) != null)
+  : c.kind !== 'why' && (words(c.a) <= 3 || (['date', 'number'].includes(c.kind) && words(c.a) <= 5));
 function makeQ(c, level, force) {
   if (c.kind === 'calc') { const m = randInt(c.m[0], c.m[1]); return { c, type: 'calc', m, ans: +(m * c.k).toFixed(6) }; }
   const at = isReason(c) ? -1 : findA(c);

@@ -142,7 +142,7 @@ service cloud.firestore {
     // Zero-G study page (learn/): private study cards and progress for these accounts only.
     // Same list as ZEROG_UIDS in index.html. The cards are uploaded with admin credentials; no client writes them.
     function zeroG() {
-      return ['ZEROG_UID_MIA', 'ZEROG_UID_MARTIN'];
+      return ['ZEROG_UID_MIA', 'PMrPR45M1OddJQMBVOjbUEfs63u1'];
     }
     match /private/{doc} {
       allow read: if request.auth != null && request.auth.uid in zeroG();

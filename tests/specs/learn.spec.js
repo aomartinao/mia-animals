@@ -131,10 +131,10 @@ test('a lesson: intro, question, feedback with the page and the quote; mistakes 
   expect(await page.evaluate(() => S.L.total)).toBe(total0 + 1);   // the wrong one came back
   expect([...types].every(t => ['intro', 'mc', 'tf', 'cloze', 'typed'].includes(t))).toBe(true);
   await expect(page.locator('.mistake')).toHaveCount(1);
-  expect(await page.evaluate(() => Object.keys(PROGRESS).sort())).toEqual(['crew', 'first-commander', 'luna-open', 'train-speed']);
+  expect(await page.evaluate(() => Object.keys(PROGRESS).sort())).toEqual(['crew', 'dome', 'first-commander', 'jump', 'luna-open', 'train-speed']);
   await expect.poll(() => db.has(`progress/${UID}`)).toBe(true);
   const saved = JSON.parse(db.get(`progress/${UID}`).fields.data.stringValue);
-  expect(Object.keys(saved).sort()).toEqual(['crew', 'first-commander', 'luna-open', 'train-speed']);
+  expect(Object.keys(saved).sort()).toEqual(['crew', 'dome', 'first-commander', 'jump', 'luna-open', 'train-speed']);
   expect(Number.isInteger(+db.get(`progress/${UID}`).fields.updated.integerValue)).toBe(true);
 });
 
