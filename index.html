@@ -127,6 +127,7 @@
   .t-exam   { background: linear-gradient(135deg, #d6c4ff, #a172ff 60%, #ff7ad9); --edge: #6a3fd1; }
   .t-board  { background: linear-gradient(135deg, #fff1a6, #ffc62e); --edge: #b98600; }
   .t-duels  { background: linear-gradient(135deg, #ffa3c7, #ff4d8d); --edge: #b8235a; }
+  .t-zerog  { background: linear-gradient(135deg, #b8e6ff, #8fb6ff 50%, #c7b3ff); --edge: #4a5fc2; min-height: 84px; margin: 14px 0 2px; text-decoration: none; }
   .progress-card { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 26px; margin-bottom: 12px; }
   .ring { width: 84px; height: 84px; flex: none; position: relative; }
   .ring svg { transform: rotate(-90deg); }
@@ -716,6 +717,8 @@ const store = {
 // Each language has its own progress: knowing Czech names and knowing English names are different things.
 const PROG_KEY = { cs: 'zv-progress-v1', en: 'zv-progress-en-v1' };
 const K = { prog: PROG_KEY[LANG], stats: 'zv-stats-v1', sel: 'zv-selected-v1', imgs: 'zv-images-v7', bad: 'zv-badimg-v1', sound: 'zv-sound-v1', hide: 'zv-hide-v1', focus: 'zv-focus-v1', whole: 'zv-whole-v1', auth: 'zv-auth-v1', player: 'zv-player-v1', duels: 'zv-duels-v1', onboarded: 'zv-onboarded-v1', hashes: 'zv-hashes-v1', dupes: 'zv-dupes-v1', account: 'zv-account-v1', glogin: 'zv-glogin-v1' };
+// Zero-G study page (learn/): its button shows only for these accounts. firestore.rules has the same list.
+const ZEROG_UIDS = ['ZEROG_UID_MIA', 'ZEROG_UID_MARTIN'];
 
 // Moving from GitHub Pages to Firebase Hosting: the old site sends everything along in the URL fragment.
 const NEW_HOME = 'https://mia-animals.web.app/';
@@ -1196,6 +1199,8 @@ const SCREENS = {
       <div class="ov-head"><span class="ov-num">${known}<small> / ${all}</small></span><span class="ov-label">${t('zvířat umíš', 'animals known')}</span><span class="ov-pct">${Math.round(pct * 100)} %</span></div>
       <div class="ov-bar"><i style="width:${Math.max(pct * 100, known ? 2 : 0)}%"></i></div>
     </div>
+    ${ZEROG_UIDS.includes((store.get(K.auth, null) || {}).uid) ? `<a class="tile t-zerog" href="learn/"><span class="ti">🚀</span>
+      <span class="tt">Zero-G</span><span class="td">${t('Studijní materiál k testu', 'Study material for the test')}</span></a>` : ''}
     ${IMG_STATE === 'failed' ? `<div class="warn">${t('Nepodařilo se načíst obrázky z Wikipedie. Zkontroluj internet.', 'Couldn’t load photos from Wikipedia. Check your internet.')} <button class="btn ghost" data-act="retry">${t('Zkusit znovu', 'Try again')}</button></div>` : ''}
 
     <div class="section-title"><span>${t('Co procvičuješ', 'What you practise')}</span>

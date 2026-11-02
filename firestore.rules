@@ -138,5 +138,21 @@ service cloud.firestore {
           && request.resource.data.at is timestamp;
       }
     }
+
+    // Zero-G study page (learn/): private study cards and progress for these accounts only.
+    // Same list as ZEROG_UIDS in index.html. The cards are uploaded with admin credentials; no client writes them.
+    function zeroG() {
+      return ['ZEROG_UID_MIA', 'ZEROG_UID_MARTIN'];
+    }
+    match /private/{doc} {
+      allow read: if request.auth != null && request.auth.uid in zeroG();
+    }
+    match /progress/{uid} {
+      allow read, delete: if isMe(uid) && uid in zeroG();
+      allow create, update: if isMe(uid) && uid in zeroG()
+        && request.resource.data.keys().hasOnly(['data', 'updated'])
+        && request.resource.data.data is string && request.resource.data.data.size() <= 150000
+        && request.resource.data.updated is int;
+    }
   }
 }

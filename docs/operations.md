@@ -37,6 +37,16 @@ node tools/nickfilter.mjs --test   # word-list checks
 node tools/nickfilter.mjs          # regenerates the filter in index.html and firestore.rules
 ```
 
+## Update the Zero-G cards
+
+The cards, the brochure and the upload script live in a private folder outside this repo
+(`~/clauding/mia-courses/zero-g-2026/`), because the repo is public. To change cards: edit and
+validate them there, then upload them again to the Firestore document `private/zero-g-2026`
+(field `data`). The page picks up the new version on its next load.
+
+To give another account access, add its uid to both `ZEROG_UIDS` in `index.html` and `zeroG()` in
+`firestore.rules`. Mia's reports about wrong cards arrive in `feedback` as `[zero-g] <card id>: …`.
+
 ## Deploy
 
 - Merging to `main` deploys both the hosting and the Firestore rules.
