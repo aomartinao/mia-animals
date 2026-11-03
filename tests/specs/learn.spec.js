@@ -132,9 +132,10 @@ test('a lesson: intro, question, feedback with the page and the quote; mistakes 
   expect([...types].every(t => ['intro', 'mc', 'tf', 'cloze', 'typed'].includes(t))).toBe(true);
   await expect(page.locator('.mistake')).toHaveCount(1);
   expect(await page.evaluate(() => Object.keys(PROGRESS).sort())).toEqual(['crew', 'dome', 'first-commander', 'jump', 'luna-open', 'train-speed']);
-  await expect.poll(() => db.has(`progress/${UID}`)).toBe(true);
-  const saved = JSON.parse(db.get(`progress/${UID}`).fields.data.stringValue);
-  expect(Object.keys(saved).sort()).toEqual(['crew', 'dome', 'first-commander', 'jump', 'luna-open', 'train-speed']);
+  // Answers sync after a 1.5 s pause and the lesson end syncs again, so on a slow runner an earlier,
+  // partial write can land first: wait for the write that has the whole lesson.
+  const savedKeys = () => db.has(`progress/${UID}`) ? Object.keys(JSON.parse(db.get(`progress/${UID}`).fields.data.stringValue)).sort() : null;
+  await expect.poll(savedKeys).toEqual(['crew', 'dome', 'first-commander', 'jump', 'luna-open', 'train-speed']);
   expect(Number.isInteger(+db.get(`progress/${UID}`).fields.updated.integerValue)).toBe(true);
 });
 
