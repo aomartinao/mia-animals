@@ -69,6 +69,7 @@ Firebase (Auth + Firestore over plain REST) powers the leaderboard, duels, feedb
 | `tests/` | Playwright end-to-end tests with mocked Wikipedia, Firebase and CDN |
 | `docs/` | Architecture and operations notes |
 | `v2/` | Redirect left over from the redesign preview |
+| `learn/` | Private study page for listed accounts: study cards, lessons and a practice test. The cards live in Firestore, not in the repo (see `docs/architecture.md`) |
 
 ## Run locally
 

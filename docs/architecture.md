@@ -108,6 +108,36 @@ is used directly over its REST APIs (no Firebase SDK).
   60 days old;
 - value ranges and allowed fields for every collection.
 
+## Zero-G page (`learn/`)
+
+A separate page (`learn/index.html`) that drills a private deck of study cards with the same lesson
+rhythm as the animals. Only the accounts in `ZEROG_UIDS` (index.html) and
+`zeroG()` (firestore.rules) can use it; the two lists must match.
+
+- **Content:** the Firestore document `private/zero-g-2026` holds one string field `data`, a JSON
+  `{ title, test: { from, to }, chapters: [{ id, title }], cards: [...] }`. Each card has `id`, `ch`
+  (brochure section; its chapter is the part before the first dot), `page`, `quote`, `fact`, `kind`
+  (date, number, name, term, why, think, fact or calc), `q`, `a`, `alt`, `wrong` (3 near misses) and
+  optionally `uses`. A `calc` card has `q` with `{m}`, a mass range `m`, a multiplier `k` and a `unit`.
+  The cards are never in the repo: the repo is public.
+- **Questions** are built from each card: multiple choice from `wrong`; true/false and fill-the-gap
+  from `fact` with `a` (only for cards that recall a fact, never for why/think); typed answers only
+  for short answers (numbers, dates, up to 3 words); calculations with a random mass, ±1 %.
+- **Access:** the rules let only the listed uids read `private/*`; no client can write it. The page
+  reuses the animal app's sign-in (`zv-auth-v1`, same origin) and refreshes the token like
+  `fbToken()`, but never creates an account. Without a sign-in it sends the player to the app; for
+  any other account Firestore answers 403 and the page shows nothing.
+- **Entry:** a 🚀 Zero-G tile on the animal home, only for the listed accounts. `learn/` is inside
+  the PWA's scope, so it opens in the home-screen app with the same storage.
+- **Progress:** `zg-progress-v1` in localStorage (`{ cardId: { b, s, c, w, t } }`, Leitner boxes as
+  for the animals), synced to `progress/{uid}` (`data`: that JSON as a string, `updated`: ms). Per
+  card the newest record wins. The course is cached in `zg-course-v1` for the account that loaded
+  it, so the page also works offline. Timer setting: `zg-timer-v1`.
+- **Practice test:** 25 cards across the chapters, about 40 % from why/think/calc; it doesn't change
+  the boxes. No XP, streak, leaderboard or duels.
+- **Reporting a card** writes to the public `feedback` collection: only `[zero-g] <card id>` and
+  the reporter's note, never card text.
+
 ## Moving from GitHub Pages
 
 The same `index.html` is still served at the old GitHub Pages address. On that host it fetches
