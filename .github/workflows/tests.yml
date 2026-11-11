@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # ubuntu-latest moved to Ubuntu 26, where Playwright's system packages fail to install
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
   deploy:
     needs: test
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # ubuntu-latest moved to Ubuntu 26, where Playwright's system packages fail to install
     timeout-minutes: 10
     env:
       SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
