@@ -1893,8 +1893,8 @@ SCREENS.board = function () {
       <h2>${B.rename ? t('Nová přezdívka', 'New nickname') : t('Soutěž s kamarády', 'Compete with friends')}</h2>
       <p class="muted" style="font-weight:700">${B.rename ? '' : `${B.after ? t('Na výzvy potřebuješ přezdívku. ', 'You need a nickname for challenges. ') : ''}${t('Vyber si přezdívku. Ostatní uvidí jen ji, tvoje body za týden a kolik zvířat umíš.', 'Pick a nickname. Others only see it, your points this week and how many animals you know.')}`}</p>
       <form data-form="nick" autocomplete="off">
-        <input class="typein" name="nick" maxlength="16" placeholder="${t('Přezdívka (2–16 znaků)', 'Nickname (2–16 characters)')}" value="${esc(PLAYER ? PLAYER.name : '')}" autofocus>
-        <button class="btn primary wide" style="margin-top:12px" type="submit">${B.rename ? t('Uložit', 'Save') : t('Připojit se', 'Join')}</button>
+        <input class="typein" name="nick" maxlength="16" placeholder="${t('Přezdívka (2–16 znaků)', 'Nickname (2–16 characters)')}" value="${esc(B.nick != null ? B.nick : PLAYER ? PLAYER.name : '')}" ${B.saving ? 'disabled' : 'autofocus'}>
+        <button class="btn primary wide" style="margin-top:12px" type="submit" ${B.saving ? 'disabled' : ''}>${B.saving ? t('Ukládám…', 'Saving…') : B.rename ? t('Uložit', 'Save') : t('Připojit se', 'Join')}</button>
       </form>
       ${B.error ? `<p style="color:var(--bad-ink);font-weight:700">${esc(B.error)}</p>` : ''}
       ${B.rename ? `<button class="btn ghost" data-act="cancelRename">${t('Zrušit', 'Cancel')}</button>` : ''}
@@ -1927,17 +1927,20 @@ SCREENS.board = function () {
 };
 
 async function joinBoard(name) {
-  S.B.error = null;
+  const B = S.B;
+  if (B.saving) return;   // one check at a time: a late answer for an earlier name must not undo a newer one
+  B.saving = true; B.nick = name; B.error = null; render();
   try {
     await setNick(name);
-    S.B.rename = false;
-    const after = S.B.after;
+    B.saving = false; B.nick = null; B.rename = false;
+    const after = B.after;
     if (after === 'duels') { newDuel(); return; }
     if (after && after.startsWith('duel:')) { openDuel(after.slice(5)); return; }
     loadBoard();
   } catch (e) {
     PLAYER = store.get(K.player, null);
-    S.B.error = nickError(e) || t('Nepovedlo se připojit. Zkontroluj internet.', 'Couldn’t connect. Check your internet.'); render();
+    B.saving = false;
+    B.error = nickError(e) || t('Nepovedlo se připojit. Zkontroluj internet.', 'Couldn’t connect. Check your internet.'); render();
   }
 }
 async function leaveBoard() {

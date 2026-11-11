@@ -160,3 +160,40 @@ test('a nickname nobody has played with for 60 days (without Google) can be take
   // not signed in with Google: the board suggests it
   await expect(page.locator('.board-signin')).toContainText('60 dní');
 });
+
+test('joining the board: while a nickname is being checked the form is locked and an earlier error is gone', async ({ browser }) => {
+  const fb = new FakeFirebase();
+  const nameDoc = uid => ({ fields: { uid: { stringValue: uid }, at: { timestampValue: new Date().toISOString() } } });
+  fb.db.set('names/sam', nameDoc('old1'));
+  fb.db.set('names/bilbo', nameDoc('old2'));
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await setupMocks(ctx, { firebase: fb });
+  // Bilbo's check hangs, as on a bad connection, until the test lets it go.
+  let release;
+  const held = new Promise(r => { release = r; });
+  await ctx.route(/\/names\/bilbo/, async r => { await held; await r.fallback(); });
+  const page = await ctx.newPage();
+  await openApp(page);
+  await page.click('[data-act=board]');
+  const nick = page.locator('input[name=nick]'), submit = page.locator('form[data-form=nick] button[type=submit]');
+  await nick.fill('Sam');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.hero')).toContainText('už někdo má');
+  await nick.fill('Bilbo');
+  await page.keyboard.press('Enter');
+  // Sam's error must not pass for Bilbo's answer, and nothing else can be sent meanwhile:
+  // a late "taken" for one name used to wipe the next name while it was being saved.
+  await expect(page.locator('.hero')).not.toContainText('už někdo má');
+  await expect(nick).toBeDisabled();
+  await expect(nick).toHaveValue('Bilbo');
+  await expect(submit).toBeDisabled();
+  await expect(submit).toHaveText('Ukládám…');
+  release();
+  await expect(page.locator('.hero')).toContainText('už někdo má');
+  await expect(nick).toBeEnabled();
+  await expect(nick).toHaveValue('Bilbo');
+  await nick.fill('Frodo');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.lb-row.me')).toContainText('Frodo');
+  expect(fb.db.get('names/frodo').fields.uid.stringValue).toBe('uid1');
+});
