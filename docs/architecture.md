@@ -110,31 +110,93 @@ is used directly over its REST APIs (no Firebase SDK).
 
 ## Zero-G page (`learn/`)
 
-A separate page (`learn/index.html`) that drills a private deck of study cards with the same lesson
-rhythm as the animals. Only the accounts in `ZEROG_UIDS` (index.html) and
-`zeroG()` (firestore.rules) can use it; the two lists must match.
+A separate page (`learn/index.html`) for a private study course: lessons with the same rhythm as the
+animals, a practice test, picture cards, visual stories with explainer widgets, games, a brochure
+reader and a fun layer (XP, ranks, streak, badges). Only the accounts in `ZEROG_UIDS` (index.html)
+and `zeroG()` (firestore.rules) can use it; the two lists must match. The page is generic: every word,
+number and picture of the course comes from Firestore at runtime, nothing of it is in the repo (the
+repo is public). The full data contract lives with the private course build; in brief:
 
-- **Content:** the Firestore document `private/zero-g-2026` holds one string field `data`, a JSON
-  `{ title, test: { from, to }, chapters: [{ id, title }], cards: [...] }`. Each card has `id`, `ch`
-  (brochure section; its chapter is the part before the first dot), `page`, `quote`, `fact`, `kind`
-  (date, number, name, term, why, think, fact or calc), `q`, `a`, `alt`, `wrong` (3 near misses) and
-  optionally `uses`. A `calc` card has `q` with `{m}`, a mass range `m`, a multiplier `k` and a `unit`.
-  The cards are never in the repo: the repo is public.
+- **Docs** (all under `private/`, each with `data` (string) and `updated` (int ms), readable only by the
+  listed uids, written with admin credentials):
+
+  | Doc id | `data` |
+  |---|---|
+  | `zero-g-2026` | the course JSON |
+  | `zero-g-2026-<pack>` (e.g. `-m1`) | a media pack: JSON `{ mediaId: dataURI }`, ≤ 900 KB |
+  | `zero-g-2026-<page>` (e.g. `-p04`) | one brochure page as a data URI |
+  | `zero-g-2026-<pdfN>` | a chunk of the brochure PDF as base64 (no prefix) |
+
+- **Course JSON:** `{ v, title, test: { from, to }, chapters, cards, games, media, packs, brochure }`.
+  Everything except `chapters` and `cards` is optional, and so is every new field on them: the page
+  still runs the first shape (`{ title, test, chapters: [{ id, title }], cards }`), and a part whose
+  data is missing simply doesn't appear. `v` is the build time; cached media and pages of another `v`
+  are dropped.
+  - Chapters: `id`, `title`, optional `emoji`, `pages` (printed page range) and `story` (slides).
+  - Cards: `id`, `ch` (brochure section; the chapter is the part before the first dot), `page`,
+    `quote`, `fact`, `kind` (date, number, name, term, why, think, fact, calc or pic), `q`, `a`, `alt`,
+    `wrong` (3 near misses), optionally `uses`. A `calc` card has `q` with `{m}`, a mass range `m`, a
+    multiplier `k` and a `unit`. Optional `img` (media id) with `imgAt`: `"a"` (default; the picture
+    would give the answer away, so it shows only on the intro and in the feedback) or `"q"` (shown with
+    the question too). A `pic` card has `img` (the right picture) and `wrongImg` (3 more) instead of
+    `wrong` and is asked as a 2×2 picture grid; until its pictures are loaded it is left out.
+  - `media`: `{ mediaId: { pack, alt, credit, w, h } }`; `packs`: the pack names, loaded in order.
+  - `brochure`: `{ pages: [{ doc, n }], pdf: { docs, name, bytes } }`; `n` is the printed page number
+    (null for the cover and the like).
 - **Questions** are built from each card: multiple choice from `wrong`; true/false and fill-the-gap
   from `fact` with `a` (only for cards that recall a fact, never for why/think); typed answers only
   for short answers (numbers, dates, up to 3 words); calculations with a random mass, ±1 %.
+- **Pictures:** after boot, with the lowest priority, the page fetches the media packs one by one,
+  keeps them in IndexedDB (`zg-cache`, keyed `pack:<name>`, with the course `v`) and turns them into
+  blob URLs (`mediaUrl(id)`, null while missing). A picture not loaded yet takes no space; when a pack
+  arrives the pictures on screen are filled in. Pictures open in a lightbox with their credit.
+  Media marked `fit: "contain"` (logos, diagrams) are never cropped. A question's own picture
+  (`imgAt: "q"`) has no description and no caption in the lightbox until the question is answered.
+- **Stories:** per chapter, full-screen slides (buttons, arrow keys, swipe) with a title, a short text
+  (`**bold**`) and one of a picture, a YouTube video (thumbnail first; the `youtube-nocookie.com`
+  iframe loads only on tap, with a note when offline) or a widget, plus an optional link into the
+  reader. A finished story gives XP once and its badge. Before the first lesson of a chapter with an
+  unseen story the page offers the story first.
+- **Widgets** (generic inline SVG; all numbers and labels from the slide's `widget`):
+  `parabola` (the flight path in phases with a plane on a play/scrub control, the current phase's load,
+  altitude, speed and note, and a cabin with a person on a scale: the gravity arrow always the same,
+  the floor's push growing with the load and gone at zero g; mass slider 40–90 kg; readouts mass,
+  scale reading = mass × load, gravity = mass × g, floor force = mass × g × load, or mass × the
+  phase's own `a` when the course states the acceleration), `orbit` (Newton's
+  cannon: three shots, the last one stays in orbit; fact chips), `timeline` (horizontal snap
+  scroll of event cards that expand on tap) and `funnel` (shrinking bars with count-up numbers and the
+  share of the first step).
+- **Games** (`games`, per chapter): `match` (4 random pairs, two shuffled columns) and `order`
+  (4 random items, tapped in order, then checked against `key`, revealing `show`). Games give XP and
+  never change the Leitner boxes. Every second lesson from a chapter with games ends with a bonus game.
+- **Chapter challenge:** up to 10 questions from one chapter, built like the practice test; 80 %
+  earns the chapter's badge.
+- **Brochure reader:** a full-screen overlay (so a lesson or story underneath stays as it was):
+  opened from home, a chapter (at its first page), the quote under an answer or a story slide (at that
+  printed page). Pages are fetched on demand with their neighbours and cached in IndexedDB like the
+  packs; swipe or buttons, chapter menu, zoom (button or double tap: fit width ↔ 2× with native
+  scrolling). "Stáhnout PDF" fetches the chunk docs, joins the base64 into one PDF blob and saves it
+  under `pdf.name` through an `<a download>` (or opens it where downloads aren't supported).
+- **Fun layer:** XP per right answer (10, ×1.5 from 3 in a row, ×2 from 6; half answers 5), for
+  finished lessons, stories, games, badges and passed challenges. 10 levels with space ranks; the
+  thresholds scale with the size of the course so the top rank is reachable by finishing it. Daily
+  streak, a daily goal (3 lessons or tests), badges per chapter (story seen, all cards met, challenge
+  passed) and a few global ones.
 - **Access:** the rules let only the listed uids read `private/*`; no client can write it. The page
   reuses the animal app's sign-in (`zv-auth-v1`, same origin) and refreshes the token like
   `fbToken()`, but never creates an account. Without a sign-in it sends the player to the app; for
-  any other account Firestore answers 403 and the page shows nothing.
+  any other account Firestore answers 403 and the page shows nothing (and clears its caches).
 - **Entry:** a 🚀 Zero-G tile on the animal home, only for the listed accounts. `learn/` is inside
   the PWA's scope, so it opens in the home-screen app with the same storage.
 - **Progress:** `zg-progress-v1` in localStorage (`{ cardId: { b, s, c, w, t } }`, Leitner boxes as
-  for the animals), synced to `progress/{uid}` (`data`: that JSON as a string, `updated`: ms). Per
-  card the newest record wins. The course is cached in `zg-course-v1` for the account that loaded
-  it, so the page also works offline. Timer setting: `zg-timer-v1`.
+  for the animals) and the page's stats in `zg-stats-v1` (`{ xp, best, days, badges, seen, games,
+  lessons, top }`). Both are synced to `progress/{uid}` (`data`: JSON of the cards plus the stats
+  under the reserved key `"_"`, `updated`: ms). Per card the newest record wins; for the stats the
+  larger XP, the union of days (so the longer streak survives), badges and seen stories. The course is
+  cached in `zg-course-v1` for the account that loaded it, so the page also works offline.
+  Timer setting: `zg-timer-v1`.
 - **Practice test:** 25 cards across the chapters, about 40 % from why/think/calc; it doesn't change
-  the boxes. No XP, streak, leaderboard or duels.
+  the boxes.
 - **Reporting a card** writes to the public `feedback` collection: only `[zero-g] <card id>` and
   the reporter's note, never card text.
 
