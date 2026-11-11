@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04   # ubuntu-latest moved to Ubuntu 26, where Playwright's system packages fail to install
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +29,9 @@ jobs:
         working-directory: tests
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          # No --with-deps: the runner image already has Chromium's system libraries, and apt
+          # (security.ubuntu.com) is sometimes unreachable from the runners, which hung this step.
+          npx playwright install chromium
 
       - name: App tests (Playwright)
         working-directory: tests
@@ -50,7 +52,7 @@ jobs:
   deploy:
     needs: test
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04   # ubuntu-latest moved to Ubuntu 26, where Playwright's system packages fail to install
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
