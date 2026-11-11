@@ -37,12 +37,30 @@ node tools/nickfilter.mjs --test   # word-list checks
 node tools/nickfilter.mjs          # regenerates the filter in index.html and firestore.rules
 ```
 
-## Update the Zero-G cards
+## Update the Zero-G course
 
-The cards, the brochure and the upload script live in a private folder outside this repo
-(`~/clauding/mia-courses/zero-g-2026/`), because the repo is public. To change cards: edit and
-validate them there, then upload them again to the Firestore document `private/zero-g-2026`
-(field `data`). The page picks up the new version on its next load.
+The course, the brochure and the upload script live in a private folder outside this repo
+(`~/clauding/mia-courses/zero-g-2026/`), because the repo is public. The build writes one file per
+Firestore doc into `build/docs/<docId>.txt` (the course doc `zero-g-2026`, the media packs, the
+brochure pages and the PDF chunks; see the Zero-G section in [architecture.md](architecture.md)), and
+the upload script writes every one of them to `private/<docId>` (field `data`, plus `updated`). Each
+build gets a new `v`, so the page drops its cached pictures and pages and fetches the new ones on its
+next load. Upload the packs, pages and PDF chunks before (or together with) the course doc, so the
+course never points at docs that aren't there yet; missing pictures just don't show.
+
+Before uploading, look at the screens with the preview tool (from the repo, after `npm ci` in `tests/`):
+
+```
+node tests/preview-learn.mjs ~/clauding/mia-courses/zero-g-2026/build /tmp/zg-shots
+node tests/preview-learn.mjs <buildDir> <outDir> --only story,widget   # just some screens
+node tests/preview-learn.mjs <buildDir> <outDir> --width 375          # a narrower phone
+```
+
+It serves the page locally, signs in with a fake account, answers Firestore from `<buildDir>/docs`
+and saves PNGs (390 × 844, 2×) of home, a chapter, every story slide (`story-<chapter>-<nn>.png`),
+each widget in several states, lesson and feedback screens, both games, the reader and the lesson end.
+It exits non-zero on page errors. `node tests/fixtures/learn-course.mjs <dir>` writes the made-up test
+course as such a build (add `old` for the first course shape).
 
 To give another account access, add its uid to both `ZEROG_UIDS` in `index.html` and `zeroG()` in
 `firestore.rules`. Reports about wrong cards arrive in `feedback` as `[zero-g] <card id>: …`.
