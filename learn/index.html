@@ -210,6 +210,8 @@
   .pg { position: relative; padding: 0; border: 2px solid var(--line); border-radius: 20px; overflow: hidden; aspect-ratio: 1; background: rgba(255,255,255,.06); box-shadow: 0 4px 0 rgba(0,0,0,.4); transition: transform .08s; }
   .pg:active { transform: translateY(3px); }
   .pg img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .pg img.fit, .mb img.fit { object-fit: contain; background: #fff; padding: 6px; }
+  .mfig img.fit { object-fit: contain; background: #fff; }
   .pg[disabled] { cursor: default; }
   .pg[disabled]:not(.correct):not(.wrong) img { opacity: .45; }
   .pg.correct::after, .pg.wrong::after { position: absolute; right: 8px; bottom: 8px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; font-weight: 800; }
@@ -821,19 +823,20 @@ function hydrate(root = document) {
   });
 }
 // A picture with its credit; no space and no broken icon while it is not loaded.
+const fitCls = id => (MEDIA[id] || {}).fit === 'contain' ? 'fit' : '';
 function pic(id, cls = 'mfig', { credit = true, zoom = true, alt = true } = {}) {
   if (!id || !MEDIA[id]) return '';
   const m = MEDIA[id], u = mediaUrl(id);
-  return `<figure class="${cls}" data-mid="${esc(id)}" ${u ? '' : 'hidden data-pending'} ${zoom ? `data-zoom="${esc(id)}"` : ''}>
-    <img ${u ? `src="${u}"` : ''} alt="${alt ? esc(m.alt || '') : ''}" ${m.w && m.h ? `width="${+m.w}" height="${+m.h}"` : ''} draggable="false">${credit && m.credit ? `<figcaption>Foto: ${esc(m.credit)}</figcaption>` : ''}</figure>`;
+  return `<figure class="${cls}" data-mid="${esc(id)}" ${u ? '' : 'hidden data-pending'} ${zoom ? `data-zoom="${esc(id)}"` : ''} ${alt ? '' : 'data-nocap'}>
+    <img class="${fitCls(id)}" ${u ? `src="${u}"` : ''} alt="${alt ? esc(m.alt || '') : ''}" ${m.w && m.h ? `width="${+m.w}" height="${+m.h}"` : ''} draggable="false">${credit && m.credit ? `<figcaption>Foto: ${esc(m.credit)}</figcaption>` : ''}</figure>`;
 }
-function lightbox(id) {
+function lightbox(id, nocap) {
   const u = mediaUrl(id); if (!u) return;
   const m = MEDIA[id] || {};
   closeLightbox();
   const el = document.createElement('div');
   el.id = 'lb'; el.setAttribute('role', 'dialog');
-  el.innerHTML = `<button class="x" aria-label="Zavřít">✕</button><img src="${u}" alt="${esc(m.alt || '')}"><div class="lbc">${esc(m.alt || '')}${m.credit ? ` · Foto: ${esc(m.credit)}` : ''}</div>`;
+  el.innerHTML = `<button class="x" aria-label="Zavřít">✕</button><img src="${u}" alt="${nocap ? '' : esc(m.alt || '')}"><div class="lbc">${nocap ? '' : esc(m.alt || '')}${m.credit ? `${nocap ? '' : ' · '}Foto: ${esc(m.credit)}` : ''}</div>`;
   el.addEventListener('click', closeLightbox);
   document.body.appendChild(el);
 }
@@ -1356,7 +1359,7 @@ function wParabola(el, d) {
     $('.pb-m').textContent = `${mass} kg`;
     $('.pb-w').textContent = `${fmt(mass * L)} kg`;
     $('.pb-gn').textContent = `${fmtInt(mass * g)} N`;
-    $('.pb-fn').textContent = `${fmtInt(mass * g * L)} N`;
+    $('.pb-fn').textContent = `${fmtInt(mass * (p.a != null ? +p.a : g * L))} N`;
     $('.pb-fs').textContent = L < 0.05 ? 'netlačí vůbec' : L > 1.05 ? 'tlačí víc' : 'stejně jako gravitace';
     $('.pb-scale').textContent = `${fmt(mass * L)} kg`;
     $('.pb-mv').textContent = `${mass} kg`;
@@ -1683,12 +1686,12 @@ function questionBody(it) {
     if (st) { if (o === right) k = 'correct'; else if (st.pick === i) k = 'wrong'; }
     return `<button class="btn ${cls} ${k}" data-pick="${i}" ${st ? 'disabled' : ''}>${esc(o)}</button>`;
   }).join('');
-  const qpic = c.img && c.imgAt === 'q' && it.type !== 'pic' ? pic(c.img) : '';
+  const qpic = c.img && c.imgAt === 'q' && it.type !== 'pic' ? pic(c.img, 'mfig', { alt: !!st }) : '';   // its description could name the answer
   let html;
   if (it.type === 'pic') html = `<div class="q-title">${esc(c.q)}</div><div class="picgrid">${it.options.map((id, i) => {
     let k = '';
     if (st) { if (id === c.img) k = 'correct'; else if (st.pick === i) k = 'wrong'; }
-    return `<button class="pg ${k}" data-pick="${i}" ${st ? 'disabled' : ''} aria-label="Obrázek ${i + 1}"><img src="${mediaUrl(id) || ''}" alt="" draggable="false"></button>`;
+    return `<button class="pg ${k}" data-pick="${i}" ${st ? 'disabled' : ''} aria-label="Obrázek ${i + 1}"><img class="${fitCls(id)}" src="${mediaUrl(id) || ''}" alt="" draggable="false"></button>`;
   }).join('')}</div>`;
   else if (it.type === 'mc') html = `${qpic}<div class="q-title">${esc(c.q)}</div><div class="options">${btns(it.options, 'opt', c.a)}</div>`;
   else if (it.type === 'tf') html = `${qpic}<div class="q-title">Platí to?</div><div class="stmt glass">${esc(it.stmt)}</div>
@@ -1952,7 +1955,7 @@ const SCREENS = {
         const p = G.pairs[i], ok = G.ok.has(i), sel = G.sel && G.sel.side === side && G.sel.i === i;
         const bad = G.bad && G.bad[side === 'l' ? 0 : 1] === i;
         return `<button class="mb ${side} ${ok ? 'ok' : ''} ${G.just === i && ok ? 'just' : ''} ${sel ? 'sel' : ''} ${bad ? 'bad' : ''}" data-m${side}="${i}" ${ok ? 'disabled' : ''}>
-          ${side === 'l' && p.img && mediaUrl(p.img) ? `<img src="${mediaUrl(p.img)}" alt="" draggable="false">` : ''}${esc(side === 'l' ? p.l : p.r)}</button>`;
+          ${side === 'l' && p.img && mediaUrl(p.img) ? `<img class="${fitCls(p.img)}" src="${mediaUrl(p.img)}" alt="" draggable="false">` : ''}${esc(side === 'l' ? p.l : p.r)}</button>`;
       };
       body = `<p class="muted small" style="font-weight:700;margin:0 0 12px">Ťukni na jednu věc vlevo a k ní na tu pravou vpravo.</p>
         <div class="mt"><div class="col">${G.left.map(i => cell('l', i)).join('')}</div><div class="col">${G.right.map(i => cell('r', i)).join('')}</div></div>`;
@@ -2001,7 +2004,7 @@ function render() {
 
 $app.addEventListener('click', e => {
   const z = e.target.closest('[data-zoom]');
-  if (z && !z.closest('button')) return lightbox(z.dataset.zoom);
+  if (z && !z.closest('button')) return lightbox(z.dataset.zoom, z.hasAttribute('data-nocap'));
   const b = e.target.closest('[data-act],[data-pick],[data-ch],[data-game],[data-ml],[data-mr],[data-ord]');
   if (!b || b.disabled) return;
   if (b.dataset.pick != null) return pick(+b.dataset.pick);

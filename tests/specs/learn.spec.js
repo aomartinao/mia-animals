@@ -484,7 +484,7 @@ test('the parabola widget: the scrubber moves through the phases; gravity stays,
   await expect(w.locator('.pb-name')).toHaveText('Vybírání');
   await w.locator('.pb-mr').fill('80');
   await expect(w.locator('.pb-m')).toHaveText('80 kg');
-  expect(await read()).toMatchObject({ name: 'Vybírání', m: '80 kg', scale: '136 kg', fg: '785 N', ff: '1 334 N' });
+  expect(await read()).toMatchObject({ name: 'Vybírání', m: '80 kg', scale: '136 kg', fg: '785 N', ff: '1 320 N' });
   // play runs the plane along the path
   await w.locator('.pb-range').fill('0');
   await w.locator('.pb-play').click();

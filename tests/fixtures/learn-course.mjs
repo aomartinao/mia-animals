@@ -95,7 +95,7 @@ export const VISUAL_COURSE = {
         { id: 'level', label: 'Klidný let', load: 1, seconds: null, alt: 4000, speed: 600, note: 'Všichni sedí, váha ukazuje jako doma.' },
         { id: 'pullup', label: 'Prudké stoupání', load: 1.7, seconds: 18, speed: 520, note: 'Podlaha tlačí víc, cítíš se těžší.' },
         { id: 'zero', label: 'Vznášení', load: 0, seconds: 20, alt: 6200, speed: 310, note: 'Letoun padá spolu s tebou – podlaha netlačí.' },
-        { id: 'pullout', label: 'Vybírání', load: 1.7, seconds: 18, speed: 520, note: 'Zase těžší, pozor na pád na podlahu.' },
+        { id: 'pullout', label: 'Vybírání', load: 1.7, a: 16.5, seconds: 18, speed: 520, note: 'Zase těžší, pozor na pád na podlahu.' },
         { id: 'level2', label: 'Klidný let', load: 1, alt: 4000, speed: 600, note: 'Konec oblouku.' }] }, page: 7 },
       { title: 'Proč stanice nepadá', text: 'Stanice LBS-1 pořád padá, ale míjí povrch.', widget: { type: 'orbit', body: 'Měsíc', craft: 'LBS-1', altitudeKm: 100, speedKmh: 5800, periodMin: 118, gravityPct: 89,
         shots: [{ label: 'Pomalu', text: 'Koule spadne kousek od hory.' }, { label: 'Rychleji', text: 'Doletí mnohem dál, ale spadne.' }, { label: '5 800 km/h', text: 'Povrch se zakřivuje stejně rychle, jak koule padá – **obíhá dokola**.' }] } },

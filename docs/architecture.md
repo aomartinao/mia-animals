@@ -150,6 +150,8 @@ repo is public). The full data contract lives with the private course build; in 
   keeps them in IndexedDB (`zg-cache`, keyed `pack:<name>`, with the course `v`) and turns them into
   blob URLs (`mediaUrl(id)`, null while missing). A picture not loaded yet takes no space; when a pack
   arrives the pictures on screen are filled in. Pictures open in a lightbox with their credit.
+  Media marked `fit: "contain"` (logos, diagrams) are never cropped. A question's own picture
+  (`imgAt: "q"`) has no description and no caption in the lightbox until the question is answered.
 - **Stories:** per chapter, full-screen slides (buttons, arrow keys, swipe) with a title, a short text
   (`**bold**`) and one of a picture, a YouTube video (thumbnail first; the `youtube-nocookie.com`
   iframe loads only on tap, with a note when offline) or a widget, plus an optional link into the
@@ -159,7 +161,8 @@ repo is public). The full data contract lives with the private course build; in 
   `parabola` (the flight path in phases with a plane on a play/scrub control, the current phase's load,
   altitude, speed and note, and a cabin with a person on a scale: the gravity arrow always the same,
   the floor's push growing with the load and gone at zero g; mass slider 40–90 kg; readouts mass,
-  scale reading = mass × load, gravity = mass × g, floor force = mass × g × load), `orbit` (Newton's
+  scale reading = mass × load, gravity = mass × g, floor force = mass × g × load, or mass × the
+  phase's own `a` when the course states the acceleration), `orbit` (Newton's
   cannon: three shots, the last one stays in orbit; fact chips), `timeline` (horizontal snap
   scroll of event cards that expand on tap) and `funnel` (shrinking bars with count-up numbers and the
   share of the first step).
